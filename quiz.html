@@ -1,0 +1,78 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <title>答题区</title>
+  <link rel="stylesheet" href="assets/app.css?v=tech7" />
+  <script src="assets/app-data.js?v=tech7" defer></script>
+  <script src="assets/app-common.js?v=tech7" defer></script>
+  <script src="assets/quiz.js?v=tech7" defer></script>
+</head>
+<body data-page="quiz">
+  <main class="app-page">
+    <header class="topbar">
+      <a class="back" href="index.html?v=tech7" aria-label="返回首页">‹</a>
+      <div class="title-wrap">
+        <h1>答题区</h1>
+        <div class="subtitle">答对 +10 分，答错 -10 分，硬件奖励可联动</div>
+      </div>
+    </header>
+
+    <section class="bt-card compact" data-bluetooth-panel>
+      <div>
+        <strong>蓝牙状态</strong>
+        <span id="btStatus">未连接 HTAI-JJ</span>
+      </div>
+      <button id="btConnect" type="button">连接</button>
+    </section>
+
+    <section class="panel">
+      <div class="score-line">
+        <div>
+          <h2>我的积分</h2>
+          <span class="muted">本机浏览器自动保存</span>
+        </div>
+        <strong id="scoreText">0</strong>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>选择难度</h2>
+      <div class="quiz-grid" id="levelGrid">
+        <button class="active" data-level="easy" type="button">简单</button>
+        <button data-level="normal" type="button">进阶</button>
+        <button data-level="hard" type="button">挑战</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>当前题目</h2>
+      <div class="question-box" id="questionText">准备出题...</div>
+      <div class="choice-grid" id="choiceGrid"></div>
+      <div class="button-row">
+        <button id="nextQuestion" type="button">下一题</button>
+        <button id="speakQuestion" class="secondary" type="button">朗读题目</button>
+        <a class="button secondary" href="rank.html?v=tech7">看排行</a>
+      </div>
+      <p class="muted" id="quizNotice">请选择一个答案。</p>
+    </section>
+
+    <section class="panel">
+      <h2>错题本</h2>
+      <ul class="list" id="wrongList"></ul>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" hidden></div>
+  <nav class="bottom-nav" aria-label="底部导航">
+    <a href="index.html?v=tech7">首页</a>
+    <a href="science.html?v=tech7">科普</a>
+    <a href="device.html?v=tech7">联动</a>
+    <a class="active" href="quiz.html?v=tech7">答题</a>
+  </nav>
+</body>
+</html>

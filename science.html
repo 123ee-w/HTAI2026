@@ -1,0 +1,66 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <title>科普视频</title>
+  <link rel="stylesheet" href="assets/app.css?v=tech7" />
+  <script src="assets/app-data.js?v=tech7" defer></script>
+  <script src="assets/app-common.js?v=tech7" defer></script>
+  <script src="assets/science.js?v=tech7" defer></script>
+</head>
+<body data-page="science">
+  <main class="app-page">
+    <header class="topbar">
+      <a class="back" href="index.html?v=tech7" aria-label="返回首页">‹</a>
+      <div class="title-wrap">
+        <h1>科普视频</h1>
+        <div class="subtitle">每个主题都有对应画面和声音</div>
+      </div>
+    </header>
+
+    <section class="bt-card compact" data-bluetooth-panel>
+      <div>
+        <strong>蓝牙接收</strong>
+        <span id="btStatus">未连接 HTAI-JJ</span>
+      </div>
+      <button id="btConnect" type="button">连接</button>
+    </section>
+
+    <section class="panel">
+      <h2>选择主题</h2>
+      <div class="theme-grid" id="themeGrid"></div>
+    </section>
+
+    <section class="video-card">
+      <video id="themeVideo" autoplay muted loop playsinline preload="auto"></video>
+      <div class="video-body">
+        <span class="badge"><span id="themeCode">A</span><span id="themeTitle">神舟飞船</span></span>
+        <h2 id="videoLabel">神舟飞船科普视频</h2>
+        <p id="themeCopy"></p>
+        <div class="science-detail">
+          <h3>科普重点</h3>
+          <ul class="science-list" id="themeFacts"></ul>
+          <div class="science-prompt" id="themePrompt"></div>
+        </div>
+        <p class="muted" id="themeSource"></p>
+        <div class="button-row two">
+          <button id="soundToggle" type="button">打开声音</button>
+          <button id="speakScience" class="secondary" type="button">朗读讲解</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" hidden></div>
+  <nav class="bottom-nav" aria-label="底部导航">
+    <a href="index.html?v=tech7">首页</a>
+    <a class="active" href="science.html?v=tech7">科普</a>
+    <a href="device.html?v=tech7">联动</a>
+    <a href="quiz.html?v=tech7">答题</a>
+  </nav>
+</body>
+</html>

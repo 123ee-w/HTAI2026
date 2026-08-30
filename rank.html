@@ -1,0 +1,74 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <title>排行榜</title>
+  <link rel="stylesheet" href="assets/app.css?v=tech7" />
+  <script src="assets/app-data.js?v=tech7" defer></script>
+  <script src="assets/app-common.js?v=tech7" defer></script>
+  <script src="assets/rank.js?v=tech7" defer></script>
+</head>
+<body data-page="rank">
+  <main class="app-page">
+    <header class="topbar">
+      <a class="back" href="index.html?v=tech7" aria-label="返回首页">‹</a>
+      <div class="title-wrap">
+        <h1>排行榜</h1>
+        <div class="subtitle">展示本机积分和航天成就</div>
+      </div>
+    </header>
+
+    <section class="bt-card compact" data-bluetooth-panel>
+      <div>
+        <strong>蓝牙状态</strong>
+        <span id="btStatus">未连接 HTAI-JJ</span>
+      </div>
+      <button id="btConnect" type="button">连接</button>
+    </section>
+
+    <section class="panel">
+      <h2>今日小小航天员</h2>
+      <div class="rank-item"><span>1. 航天小达人</span><strong>120 分</strong></div>
+      <div class="rank-item"><span>2. 太空观察员</span><strong>90 分</strong></div>
+      <div class="rank-item"><span>3. 我的积分</span><strong id="myScore">0 分</strong></div>
+    </section>
+
+    <section class="panel achievement-wall">
+      <h2>航天成就墙</h2>
+      <div class="achievement-card">
+        <span class="badge" id="achievementLevel">ACH0</span>
+        <strong id="achievementTitle">航天新学员</strong>
+        <p id="achievementDesc">解锁“神舟入门”。继续答题可以点亮更多主题。</p>
+      </div>
+      <div class="tag-grid" id="achievementTags"></div>
+      <div class="button-row two">
+        <button id="syncAchievement" type="button">同步到好搭屏幕</button>
+        <a class="button secondary" href="quiz.html?v=tech7">继续答题</a>
+      </div>
+      <p class="muted">同步会发送 ACH0 / ACH1 / ACH2 / ACH3，硬件显示固定称号，避免中文乱码。</p>
+    </section>
+
+    <section class="panel">
+      <h2>称号规则</h2>
+      <ul class="list">
+        <li>0-50 分：航天新学员</li>
+        <li>60-90 分：航天入门讲解员</li>
+        <li>100-140 分：航天小达人</li>
+        <li>150 分及以上：金牌航天讲解员</li>
+      </ul>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" hidden></div>
+  <nav class="bottom-nav" aria-label="底部导航">
+    <a href="index.html?v=tech7">首页</a>
+    <a href="science.html?v=tech7">科普</a>
+    <a href="device.html?v=tech7">联动</a>
+    <a class="active" href="rank.html?v=tech7">排行</a>
+  </nav>
+</body>
+</html>

@@ -1,0 +1,62 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <title>联动装置</title>
+  <link rel="stylesheet" href="assets/app.css?v=tech7" />
+  <script src="assets/app-data.js?v=tech7" defer></script>
+  <script src="assets/app-common.js?v=tech7" defer></script>
+</head>
+<body data-page="device">
+  <main class="app-page">
+    <header class="topbar">
+      <a class="back" href="index.html?v=tech7" aria-label="返回首页">‹</a>
+      <div class="title-wrap">
+        <h1>联动装置</h1>
+        <div class="subtitle">连接 HTAI-JJ，控制好搭掌控灯光和音乐</div>
+      </div>
+    </header>
+
+    <section class="bt-card" data-bluetooth-panel>
+      <div>
+        <strong>蓝牙状态</strong>
+        <span id="btStatus">未连接 HTAI-JJ</span>
+      </div>
+      <button id="btConnect" type="button">连接</button>
+      <button id="btDisconnect" class="secondary" type="button">断开</button>
+    </section>
+
+    <section class="panel">
+      <h2>远程控制</h2>
+      <div class="remote-grid">
+        <button data-send-command="STAR" type="button">星空动画</button>
+        <button data-send-command="MUSIC" type="button">播放航天音乐</button>
+        <button class="warn" data-send-command="WARN" type="button">灯光告警</button>
+      </div>
+      <p class="muted">这里不放设备自检。远程控制回包会被网页忽略，不会误跳科普区。</p>
+    </section>
+
+    <section class="panel">
+      <h2>通信协议</h2>
+      <ul class="list">
+        <li>硬件发 A/B/P/Y/T/O/N/QR：网页切换对应科普主题。</li>
+        <li>硬件发 ALL：网页播放航天合集。</li>
+        <li>硬件发 H：网页直接进入答题区。</li>
+        <li>网页发送 STAR / MUSIC / WARN：好搭掌控做声光反馈。</li>
+      </ul>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" hidden></div>
+  <nav class="bottom-nav" aria-label="底部导航">
+    <a href="index.html?v=tech7">首页</a>
+    <a href="science.html?v=tech7">科普</a>
+    <a class="active" href="device.html?v=tech7">联动</a>
+    <a href="quiz.html?v=tech7">答题</a>
+  </nav>
+</body>
+</html>
