@@ -286,6 +286,14 @@ p { line-height: 1.68; }
   object-fit: cover;
 }
 
+.video-frame iframe {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 0;
+  background: #020817;
+}
+
 .video-body { padding: 14px; }
 
 .badge {

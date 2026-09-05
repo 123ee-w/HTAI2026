@@ -17,6 +17,8 @@
   let answered = false;
   let countdownTimer = null;
   let countdownRemaining = 0;
+  let advanceTimer = null;
+  let usedQuestions = new Set();
   let wrongList = JSON.parse(localStorage.getItem(wrongKey) || '[]');
 
   function save() {
@@ -48,6 +50,15 @@
     countdownRemaining = 0;
   }
 
+  function clearAdvance() {
+    if (advanceTimer) clearTimeout(advanceTimer);
+    advanceTimer = null;
+  }
+
+  function getCountdownSeconds() {
+    return 5 + Math.floor(Math.random() * 6);
+  }
+
   function startCountdown(seconds) {
     clearCountdown();
     window.App.sendCommand(`TIME_${seconds}`, { quiet: true });
@@ -58,7 +69,10 @@
       const notice = window.App.$('#quizNotice');
       if (countdownRemaining <= 0) {
         clearCountdown();
-        notice.textContent = '倒计时结束，请选择答案。';
+        notice.textContent = '时间到，本题关闭，准备下一题。';
+        renderAnsweredState('时间到');
+        clearAdvance();
+        advanceTimer = setTimeout(nextQuestion, 1200);
       } else {
         notice.textContent = `倒计时：${countdownRemaining} 秒`;
       }
@@ -78,21 +92,30 @@
     )).join('');
     window.App.$all('[data-redo]', list).forEach((button) => {
       button.addEventListener('click', () => {
+        clearAdvance();
+        clearCountdown();
         current = wrongList[Number(button.dataset.redo)];
         currentChoices = shuffle(current.options);
         answered = false;
         renderQuestion('正在重做错题。');
+        startCountdown(getCountdownSeconds());
       });
     });
   }
 
   function nextQuestion() {
+    clearAdvance();
     clearCountdown();
     const pool = questionsForLevel();
-    current = pool[Math.floor(Math.random() * pool.length)];
+    const unused = pool.filter((item) => !usedQuestions.has(item.q));
+    if (!unused.length) usedQuestions.clear();
+    const available = pool.filter((item) => !usedQuestions.has(item.q));
+    current = available[Math.floor(Math.random() * available.length)];
+    usedQuestions.add(current.q);
     currentChoices = shuffle(current.options);
     answered = false;
     renderQuestion(hardwareMode ? '请按掌控板 A/B/P/Y 选择答案。' : '新题来了，请选择答案。');
+    startCountdown(getCountdownSeconds());
   }
 
   function renderQuestion(notice) {
@@ -121,6 +144,7 @@
     if (!current || answered) return;
     answered = true;
     clearCountdown();
+    clearAdvance();
     const buttons = window.App.$all('[data-choice]');
     if (choice === current.a) {
       score += 10;
@@ -142,6 +166,7 @@
     save();
     renderWrongList();
     showExplanation();
+    advanceTimer = setTimeout(nextQuestion, 1800);
   }
 
   function showExplanation() {
@@ -205,9 +230,6 @@
     window.App.$('#nextQuestion').addEventListener('click', nextQuestion);
     window.App.$('#speakQuestion').addEventListener('click', speakQuestion);
     window.App.$('#speakExplain').addEventListener('click', speakExplanation);
-    window.App.$all('[data-countdown]').forEach((button) => {
-      button.addEventListener('click', () => startCountdown(Number(button.dataset.countdown)));
-    });
     window.addEventListener('htai:answer', handleHardwareAnswer);
     nextQuestion();
   }

@@ -23,14 +23,30 @@
     window.App.$('#themeSource').textContent = data.source;
 
     const video = window.App.$('#themeVideo');
-    video.src = data.video + (data.video.includes('?') ? '&' : '?') + 'v=tech8';
-    video.muted = true;
-    video.loop = true;
-    video.autoplay = true;
-    video.volume = 1;
-    video.play().catch(() => {});
+    const frame = window.App.$('#videoFrame');
     const soundToggle = window.App.$('#soundToggle');
-    if (soundToggle) soundToggle.textContent = '打开声音';
+    if (data.bvid) {
+      frame.hidden = false;
+      frame.innerHTML = `<iframe src="https://player.bilibili.com/player.html?bvid=${data.bvid}&page=1&high_quality=1&danmaku=0" allow="autoplay; fullscreen" allowfullscreen></iframe>`;
+      video.hidden = true;
+      video.removeAttribute('src');
+      video.load();
+      if (soundToggle) soundToggle.hidden = true;
+    } else {
+      frame.hidden = true;
+      frame.innerHTML = '';
+      video.hidden = false;
+      video.src = data.video + (data.video.includes('?') ? '&' : '?') + 'v=tech8';
+      video.muted = true;
+      video.loop = true;
+      video.autoplay = true;
+      video.volume = 1;
+      video.play().catch(() => {});
+      if (soundToggle) {
+        soundToggle.hidden = false;
+        soundToggle.textContent = '打开声音';
+      }
+    }
 
     window.App.$all('.theme-button').forEach((button) => {
       button.classList.toggle('active', button.dataset.theme === data.code);
@@ -90,7 +106,7 @@
 
   function initScience() {
     const grid = window.App.$('#themeGrid');
-    grid.innerHTML = window.AppData.themeOrder.map((code) => {
+    grid.innerHTML = selectableThemeCodes.map((code) => {
       const item = window.AppData.themes[code];
       return `<button class="theme-button" data-theme="${code}" type="button">${code} · ${item.shortTitle}</button>`;
     }).join('');
