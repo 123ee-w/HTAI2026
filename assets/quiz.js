@@ -7,11 +7,16 @@
     hard: 'QOK3'
   };
 
+  const params = new URLSearchParams(location.search);
+  const hardwareMode = params.get('mode') === 'dati';
+
   let score = Number(localStorage.getItem(scoreKey) || 0);
   let level = 'easy';
   let current = null;
   let currentChoices = [];
   let answered = false;
+  let countdownTimer = null;
+  let countdownRemaining = 0;
   let wrongList = JSON.parse(localStorage.getItem(wrongKey) || '[]');
 
   function save() {
@@ -37,6 +42,29 @@
     });
   }
 
+  function clearCountdown() {
+    if (countdownTimer) clearInterval(countdownTimer);
+    countdownTimer = null;
+    countdownRemaining = 0;
+  }
+
+  function startCountdown(seconds) {
+    clearCountdown();
+    window.App.sendCommand(`TIME_${seconds}`, { quiet: true });
+    countdownRemaining = seconds;
+    window.App.$('#quizNotice').textContent = `倒计时：${countdownRemaining} 秒`;
+    countdownTimer = setInterval(() => {
+      countdownRemaining -= 1;
+      const notice = window.App.$('#quizNotice');
+      if (countdownRemaining <= 0) {
+        clearCountdown();
+        notice.textContent = '倒计时结束，请选择答案。';
+      } else {
+        notice.textContent = `倒计时：${countdownRemaining} 秒`;
+      }
+    }, 1000);
+  }
+
   function renderWrongList() {
     const list = window.App.$('#wrongList');
     if (!wrongList.length) {
@@ -59,11 +87,12 @@
   }
 
   function nextQuestion() {
+    clearCountdown();
     const pool = questionsForLevel();
     current = pool[Math.floor(Math.random() * pool.length)];
     currentChoices = shuffle(current.options);
     answered = false;
-    renderQuestion('新题来了，请选择答案。');
+    renderQuestion(hardwareMode ? '请按掌控板 A/B/P/Y 选择答案。' : '新题来了，请选择答案。');
   }
 
   function renderQuestion(notice) {
@@ -73,46 +102,94 @@
       `<button data-choice="${choice}" type="button">${String.fromCharCode(65 + index)}. ${choice}</button>`
     )).join('');
     window.App.$all('[data-choice]', grid).forEach((button) => {
-      button.addEventListener('click', () => answer(button, button.dataset.choice));
+      button.addEventListener('click', () => selectChoice(button.dataset.choice));
     });
     window.App.$('#quizNotice').textContent = notice;
+    const explain = window.App.$('#answerExplanation');
+    explain.hidden = true;
+    explain.textContent = '';
   }
 
-  function answer(button, choice) {
-    if (answered) return;
+  function renderAnsweredState(message) {
+    window.App.$('#questionText').textContent = message;
+    window.App.$all('[data-choice]').forEach((button) => {
+      button.disabled = true;
+    });
+  }
+
+  function selectChoice(choice) {
+    if (!current || answered) return;
     answered = true;
+    clearCountdown();
+    const buttons = window.App.$all('[data-choice]');
     if (choice === current.a) {
       score += 10;
-      button.classList.add('correct');
+      buttons.find((item) => item.dataset.choice === choice)?.classList.add('correct');
       wrongList = wrongList.filter((item) => item.q !== current.q);
       window.App.$('#quizNotice').textContent = '回答正确，积分 +10。';
+      renderAnsweredState('回答正确');
       sendReward(rewardByLevel[level]);
     } else {
       score -= 10;
-      button.classList.add('wrong');
-      const rightButton = window.App.$all('[data-choice]').find((item) => item.dataset.choice === current.a);
-      if (rightButton) rightButton.classList.add('correct');
+      buttons.find((item) => item.dataset.choice === choice)?.classList.add('wrong');
+      buttons.find((item) => item.dataset.choice === current.a)?.classList.add('correct');
       if (!wrongList.some((item) => item.q === current.q)) wrongList.push(current);
       window.App.$('#quizNotice').textContent = `回答错误，积分 -10。正确答案：${current.a}`;
+      renderAnsweredState('回答错误');
       sendReward('QBAD');
     }
     renderScore();
     save();
     renderWrongList();
+    showExplanation();
   }
 
-  function speakQuestion() {
+  function showExplanation() {
+    const explain = window.App.$('#answerExplanation');
+    if (!current?.explain) {
+      explain.hidden = true;
+      explain.textContent = '';
+      return;
+    }
+    explain.hidden = false;
+    explain.textContent = `讲解：${current.explain}`;
+  }
+
+  function speakText(text, successText) {
     if (!('speechSynthesis' in window)) {
       window.App.$('#quizNotice').textContent = '当前浏览器不支持朗读。';
       return;
     }
     window.speechSynthesis.cancel();
-    const text = `${current.q}。选项：${currentChoices.join('，')}`;
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'zh-CN';
     utterance.rate = 0.92;
     window.speechSynthesis.speak(utterance);
-    window.App.$('#quizNotice').textContent = '正在朗读题目。';
+    window.App.$('#quizNotice').textContent = successText;
+  }
+
+  function speakQuestion() {
+    if (!current) return;
+    speakText(
+      `${current.q}。选项：${currentChoices.join('，')}`,
+      '正在朗读题目。'
+    );
+  }
+
+  function speakExplanation() {
+    if (!current || !current.explain) {
+      window.App.$('#quizNotice').textContent = '当前题目暂无讲解。';
+      return;
+    }
+    speakText(current.explain, '正在朗读讲解。');
+  }
+
+  function handleHardwareAnswer(event) {
+    const letter = event.detail?.letter;
+    if (!letter || !current || answered) return;
+    const index = letter.charCodeAt(0) - 65;
+    const choice = currentChoices[index];
+    if (choice) selectChoice(choice);
   }
 
   function initQuiz() {
@@ -127,6 +204,11 @@
     });
     window.App.$('#nextQuestion').addEventListener('click', nextQuestion);
     window.App.$('#speakQuestion').addEventListener('click', speakQuestion);
+    window.App.$('#speakExplain').addEventListener('click', speakExplanation);
+    window.App.$all('[data-countdown]').forEach((button) => {
+      button.addEventListener('click', () => startCountdown(Number(button.dataset.countdown)));
+    });
+    window.addEventListener('htai:answer', handleHardwareAnswer);
     nextQuestion();
   }
 
