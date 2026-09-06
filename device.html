@@ -7,10 +7,10 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <title>联动装置</title>
-  <link rel="stylesheet" href="assets/app.css?v=remote5" />
+  <link rel="stylesheet" href="assets/app.css?v=network2" />
   <script src="assets/app-data.js?v=remote6" defer></script>
-  <script src="assets/app-common.js?v=tech1" defer></script>
-  <script src="assets/device.js?v=mode6" defer></script>
+  <script src="assets/app-common.js?v=network2" defer></script>
+  <script src="assets/device.js?v=network2" defer></script>
 </head>
 <body data-page="device">
   <main class="app-page">
@@ -18,22 +18,21 @@
       <a class="back" href="index.html" aria-label="返回首页">‹</a>
       <div class="title-wrap">
         <h1>联动装置</h1>
-        <div class="subtitle">连接 HTAI-JJ，控制好搭掌控灯光和音乐</div>
+        <div class="subtitle">掌控板语音与网页通过 TinyWebDB 网络同步</div>
       </div>
     </header>
 
-    <section class="bt-card" data-bluetooth-panel>
+    <section class="bt-card" data-network-panel>
       <div>
-        <strong>蓝牙状态</strong>
-        <span id="btStatus">未连接 HTAI-JJ</span>
+        <strong>网络状态</strong>
+        <span id="cloudStatus">正在连接 TinyWebDB</span>
       </div>
-      <button id="btConnect" type="button">连接</button>
-      <button id="btDisconnect" class="secondary" type="button">断开</button>
+      <button id="cloudRefresh" class="secondary" type="button">刷新</button>
     </section>
 
     <section class="panel mode-panel">
       <h2>模式选择</h2>
-      <p class="muted" id="modeHint">连接 HTAI-JJ 后解锁，未连接时模式按钮不可用。</p>
+      <p class="muted" id="modeHint">网络同步正常后解锁，网络不可用时模式按钮不可用。</p>
       <div class="mode-grid">
         <button class="mode-button" data-mode="dati" type="button">
           <span>答题模式</span>
@@ -62,15 +61,15 @@
         <button data-send-command="MUSIC" type="button">播放航天音乐</button>
         <button class="warn" data-send-command="WARN" type="button">灯光告警</button>
       </div>
-      <p class="muted">语音识别说出主题后，网页直接打开对应科普视频；掌控板只负责语音合成和灯光反馈。</p>
+      <p class="muted">掌控板语音识别后写入主题 tag；网页读取后打开对应科普视频。灯光和语音合成仍由掌控板本地完成。</p>
     </section>
 
     <section class="panel">
       <h2>通信协议</h2>
       <ul class="list">
-        <li>硬件发 A/B/P/Y/T/O/N/QR：网页切换对应科普主题。</li>
-        <li>硬件发 H：网页直接进入答题区。</li>
-        <li>网页按钮发送 STAR / MUSIC / WARN：好搭掌控做声光反馈。</li>
+        <li>掌控板写入 HTAI_TOPIC：网页切换神舟、天宫、火箭等主题视频。</li>
+        <li>掌控板写入 HTAI_MODE 和 HTAI_PAGE：网页同步当前模式。</li>
+        <li>网页写入 HTAI_COMMAND、HTAI_EFFECT、HTAI_QUIZ_STATS：供掌控板网络版后续读取。</li>
       </ul>
     </section>
   </main>

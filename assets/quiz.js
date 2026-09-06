@@ -3,14 +3,9 @@
   const wrongKey = 'htai-wrong-list';
   const correctKey = 'htai-correct-count';
   const incorrectKey = 'htai-incorrect-count';
-  const rewardByLevel = {
-    easy: 'QOK1',
-    normal: 'QOK2',
-    hard: 'QOK3'
-  };
 
   const params = new URLSearchParams(location.search);
-  const hardwareMode = params.get('mode') === 'dati';
+  const networkMode = ['dati', 'countdown'].includes(params.get('mode'));
 
   let score = Number(localStorage.getItem(scoreKey) || 0);
   let totalCorrect = Number(localStorage.getItem(correctKey) || 0);
@@ -24,18 +19,14 @@
   let advanceTimer = null;
   let usedQuestions = new Set();
   let wrongList = JSON.parse(localStorage.getItem(wrongKey) || '[]');
+  let lastQuestionKey = '';
 
   function save() {
     localStorage.setItem(scoreKey, String(score));
     localStorage.setItem(wrongKey, JSON.stringify(wrongList));
     localStorage.setItem(correctKey, String(totalCorrect));
     localStorage.setItem(incorrectKey, String(totalWrong));
-    window.App.syncQuizStats?.({
-      score,
-      correct: totalCorrect,
-      wrong: totalWrong,
-      level
-    }).catch(() => {});
+    window.App.syncQuizStats?.({ score, correct: totalCorrect, wrong: totalWrong, level }).catch(() => {});
   }
 
   function shuffle(list) {
@@ -51,12 +42,6 @@
     window.App.$('#correctText').textContent = `${totalCorrect} 题`;
     window.App.$('#wrongText').textContent = `${totalWrong} 题`;
     window.App.$('#levelText').textContent = level === 'hard' ? '挑战' : level === 'normal' ? '进阶' : '简单';
-  }
-
-  function sendReward(command) {
-    window.App.sendCommand(command, { quiet: true }).then((sent) => {
-      if (sent) window.App.showToast('硬件奖励已触发');
-    });
   }
 
   function clearCountdown() {
@@ -87,7 +72,7 @@
         notice.textContent = '时间到，本题关闭，准备下一题。';
         renderAnsweredState('时间到');
         clearAdvance();
-        advanceTimer = setTimeout(nextQuestion, 1200);
+        advanceTimer = setTimeout(nextQuestion, 1000);
       } else {
         notice.textContent = `倒计时：${countdownRemaining} 秒`;
       }
@@ -122,30 +107,24 @@
     clearAdvance();
     clearCountdown();
     const pool = questionsForLevel();
-    const unused = pool.filter((item) => !usedQuestions.has(item.q));
-    if (!unused.length) usedQuestions.clear();
-    const available = pool.filter((item) => !usedQuestions.has(item.q));
+    if (!pool.length) return;
+    let available = pool.filter((item) => !usedQuestions.has(item.q) && item.q !== lastQuestionKey);
+    if (!available.length) {
+      usedQuestions.clear();
+      available = pool.filter((item) => item.q !== lastQuestionKey);
+    }
+    if (!available.length) available = pool;
     current = available[Math.floor(Math.random() * available.length)];
     usedQuestions.add(current.q);
+    lastQuestionKey = current.q;
     currentChoices = shuffle(current.options);
     answered = false;
-    renderQuestion(hardwareMode ? '请按掌控板 A/B/P/Y 选择答案。' : '新题来了，请选择答案。');
+    renderQuestion(networkMode ? '请选择答案，结果会同步到网络。' : '请选择答案。');
     startCountdown(getCountdownSeconds());
   }
 
-  // 本次开机答题统计（独立于 localStorage 持久化分数）
-  let sessionCorrect = 0;
-  let sessionWrong = 0;
-
-  // 发送当前累计统计：掌控板屏幕显示积分、答对、答错和难度
-  function sendStatsToHardware() {
-    if (window.App.sendQuizStats) {
-      window.App.sendQuizStats(score, totalCorrect, totalWrong, level).catch(() => {});
-    }
-  }
-
   function sendTTS(text) {
-    window.App.sendTTS && window.App.sendTTS(text);
+    window.App.sendTTS?.(text);
   }
 
   function renderQuestion(notice) {
@@ -161,7 +140,6 @@
     const explain = window.App.$('#answerExplanation');
     explain.hidden = true;
     explain.textContent = '';
-    sendStatsToHardware();
   }
 
   function renderAnsweredState(message) {
@@ -179,33 +157,30 @@
     const buttons = window.App.$all('[data-choice]');
     if (choice === current.a) {
       score += 10;
-      sessionCorrect++;
       totalCorrect++;
       buttons.find((item) => item.dataset.choice === choice)?.classList.add('correct');
       wrongList = wrongList.filter((item) => item.q !== current.q);
       window.App.$('#quizNotice').textContent = '回答正确，积分 +10。';
       renderAnsweredState('回答正确');
-      window.App.sendAnswerResult && window.App.sendAnswerResult(true, level);
+      window.App.sendAnswerResult?.(true, level);
       const levelText = level === 'hard' ? '挑战难度' : level === 'normal' ? '中等难度' : '简单难度';
-      sendTTS('答对了，' + levelText);
+      sendTTS(`答对了，${levelText}`);
     } else {
       score -= 10;
-      sessionWrong++;
       totalWrong++;
       buttons.find((item) => item.dataset.choice === choice)?.classList.add('wrong');
       buttons.find((item) => item.dataset.choice === current.a)?.classList.add('correct');
       if (!wrongList.some((item) => item.q === current.q)) wrongList.push(current);
       window.App.$('#quizNotice').textContent = `回答错误，积分 -10。正确答案：${current.a}`;
       renderAnsweredState('回答错误');
-      window.App.sendAnswerResult && window.App.sendAnswerResult(false, level);
+      window.App.sendAnswerResult?.(false, level);
       sendTTS('回答错误，扣十分');
     }
     renderScore();
     save();
     renderWrongList();
     showExplanation();
-    sendStatsToHardware();
-    advanceTimer = setTimeout(nextQuestion, 1800);
+    advanceTimer = setTimeout(nextQuestion, 1500);
   }
 
   function showExplanation() {
@@ -234,10 +209,7 @@
 
   function speakQuestion() {
     if (!current) return;
-    speakText(
-      `${current.q}。选项：${currentChoices.join('，')}`,
-      '正在朗读题目。'
-    );
+    speakText(`${current.q}。选项：${currentChoices.join('，')}`, '正在朗读题目。');
   }
 
   function speakExplanation() {
@@ -248,7 +220,7 @@
     speakText(current.explain, '正在朗读讲解。');
   }
 
-  function handleHardwareAnswer(event) {
+  function handleCloudAnswer(event) {
     const letter = event.detail?.letter;
     if (!letter || !current || answered) return;
     const index = letter.charCodeAt(0) - 65;
@@ -270,25 +242,25 @@
     }
     renderScore();
     renderWrongList();
-    // 初始化时发送当前积分到掌控板（积分保留逻辑）
-    sendStatsToHardware();
-    window.App.syncQuizStats?.({
-      score,
-      correct: totalCorrect,
-      wrong: totalWrong,
-      level
-    }).catch(() => {});
+    window.App.syncQuizStats?.({ score, correct: totalCorrect, wrong: totalWrong, level }).catch(() => {});
+
     window.App.$all('[data-level]').forEach((button) => {
       button.addEventListener('click', () => {
         level = button.dataset.level;
         window.App.$all('[data-level]').forEach((item) => item.classList.toggle('active', item === button));
+        renderScore();
         nextQuestion();
+        save();
       });
     });
     window.App.$('#nextQuestion').addEventListener('click', nextQuestion);
     window.App.$('#speakQuestion').addEventListener('click', speakQuestion);
     window.App.$('#speakExplain').addEventListener('click', speakExplanation);
-    window.addEventListener('htai:answer', handleHardwareAnswer);
+    window.addEventListener('htai:answer', handleCloudAnswer);
+    window.addEventListener('htai:stats', (event) => {
+      if (answered || !event.detail) return;
+      renderScore();
+    });
     nextQuestion();
   }
 

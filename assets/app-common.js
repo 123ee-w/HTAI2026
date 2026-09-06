@@ -1,28 +1,51 @@
 (function () {
-  const UART_SERVICE = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
-  const UART_RX = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
-  const UART_TX = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
-  const encoder = new TextEncoder();
-  const decoder = new TextDecoder('utf-8');
   const tinyWebDbUrl = 'https://tinywebdb.appinventor.space/api';
   const tinyWebDbUser = 'tsc123';
   const tinyWebDbSecret = '56f57fef';
-  const tinyWebDbTag = 'HTAI_QUIZ_STATS';
-  const voiceIdMap = {
-    '53': 'A',
-    '54': 'B',
-    '55': 'P',
-    '56': 'Y',
-    '57': 'T',
-    '58': 'O',
-    '59': 'N',
-    '60': 'H',
-    '61': 'ALL'
+  const tags = {
+    topic: 'HTAI_TOPIC',
+    page: 'HTAI_PAGE',
+    mode: 'HTAI_MODE',
+    command: 'HTAI_COMMAND',
+    keyword: 'HTAI_KEYWORD',
+    answer: 'HTAI_ANSWER',
+    effect: 'HTAI_EFFECT',
+    tts: 'HTAI_TTS',
+    question: 'HTAI_QUESTION',
+    stats: 'HTAI_QUIZ_STATS',
+    legacyTopic: 'current_theme'
   };
 
-  let device = null;
-  let writeCharacteristic = null;
-  let latestStatus = '未连接 HTAI-JJ';
+  const themeAliases = {
+    A: 'A',
+    B: 'B',
+    P: 'P',
+    Y: 'Y',
+    T: 'T',
+    O: 'O',
+    N: 'N',
+    ALL: 'ALL',
+    QR: 'QR',
+    SHENZHOU: 'A',
+    TIANGONG: 'B',
+    HUOJIAN: 'P',
+    ROCKET: 'P',
+    TANYUE: 'Y',
+    MOON: 'Y',
+    TIANWEN: 'T',
+    MARS: 'T',
+    BEIDOU: 'O',
+    FEIJI: 'N',
+    C919: 'N',
+    HOME: ''
+  };
+
+  let networkReady = false;
+  let pollTimer = null;
+  let pollBusy = false;
+  let latestStatus = '正在连接 TinyWebDB';
+  let lastSnapshot = null;
+  let lastTopicCode = '';
 
   function $(selector, root = document) {
     return root.querySelector(selector);
@@ -36,202 +59,63 @@
     window.dispatchEvent(new CustomEvent(name, { detail }));
   }
 
-  function getThemeCode(fallback = 'A') {
-    const params = new URLSearchParams(location.search);
-    const code = (params.get('theme') || localStorage.getItem('htai-theme') || fallback).toUpperCase();
-    return window.AppData.themes[code] ? code : fallback;
-  }
-
-  function setThemeCode(code) {
-    if (window.AppData.themes[code]) localStorage.setItem('htai-theme', code);
-  }
-
-  function isBluetoothConnected() {
-    return Boolean(writeCharacteristic);
-  }
-
-  function setStatus(text, connected) {
-    latestStatus = text;
-    $all('#btStatus,[data-bt-status]').forEach((node) => {
-      node.textContent = text;
-      node.classList.toggle('ok', Boolean(connected));
-    });
-  }
-
   function showToast(text) {
     const toast = $('#toast');
     if (!toast) return;
     toast.textContent = text;
     toast.hidden = false;
     clearTimeout(showToast.timer);
-    showToast.timer = setTimeout(() => { toast.hidden = true; }, 2400);
+    showToast.timer = setTimeout(() => {
+      toast.hidden = true;
+    }, 2400);
   }
 
-  function normalizeSignal(text) {
-    let clean = String(text || '').trim().toUpperCase();
-    if (!clean) return '';
-    clean = clean.replace(/^B['"]/, '').replace(/['"]$/, '').trim();
-    clean = clean.replace(/^VOICE[_-]?ID[_-]?/, '');
-    if (voiceIdMap[clean]) return voiceIdMap[clean];
-    if (/^(OK|STAR|MUSIC|WARN|CHECK|QOK1|QOK2|QOK3|QBAD|ACH[0-3])(:|$)/.test(clean)) return '';
-    if (/^ANSWER_[A-D]$/.test(clean)) return clean;
-    if (/^THEME_[1-7]$/.test(clean)) return clean;
-    if (clean === 'ALL') return 'ALL';
-    if (clean === 'QR') return 'QR';
-    return ['A', 'B', 'P', 'Y', 'T', 'O', 'N', 'H'].includes(clean) ? clean : '';
+  function setStatus(text, connected) {
+    latestStatus = text;
+    $all('#cloudStatus,#btStatus,[data-cloud-status],[data-bt-status]').forEach((node) => {
+      node.textContent = text;
+      node.classList.toggle('ok', Boolean(connected));
+    });
+    $all('[data-send-command], #syncAchievement').forEach((node) => {
+      node.disabled = !connected;
+    });
   }
 
-  function handleSignal(raw) {
-    const signal = normalizeSignal(raw);
-    if (!signal) return;
+  function getThemeCode(fallback = 'A') {
+    const params = new URLSearchParams(location.search);
+    const requested = (params.get('theme') || localStorage.getItem('htai-theme') || fallback).toUpperCase();
+    return window.AppData.themes[requested] ? requested : fallback;
+  }
 
-    if (signal.startsWith('ANSWER_')) {
-      emit('htai:answer', { letter: signal.slice(-1) });
-      return;
+  function setThemeCode(code) {
+    if (window.AppData.themes[code]) localStorage.setItem('htai-theme', code);
+  }
+
+  function isNetworkReady() {
+    return networkReady;
+  }
+
+  function parseMaybeJson(value) {
+    if (typeof value !== 'string') return value;
+    const trimmed = value.trim();
+    if (!trimmed) return '';
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      return value;
     }
+  }
 
-    if (signal.startsWith('THEME_')) {
-      emit('htai:theme', { index: Number(signal.slice(-1)) });
-      return;
-    }
-
-    if (signal === 'H') {
-      location.href = 'quiz.html?v=tech7&mode=dati';
-      return;
-    }
-
-    if (window.AppData.themes[signal]) {
-      setThemeCode(signal);
-      if (document.body.dataset.page === 'science' && window.AppScience) {
-        window.AppScience.activate(signal, true);
+  function unwrapValue(result, tag = '') {
+    let value = result;
+    if (value && typeof value === 'object') {
+      if (tag && Object.prototype.hasOwnProperty.call(value, tag)) {
+        value = value[tag];
       } else {
-        location.href = `science.html?v=tech7&theme=${encodeURIComponent(signal)}`;
+        value = value.value ?? value.data?.value ?? value.data ?? value.result ?? '';
       }
     }
-  }
-
-  async function connectBluetooth() {
-    if (!navigator.bluetooth) {
-      setStatus('当前浏览器不支持 Web Bluetooth');
-      showToast('请用安卓 Chrome 或 Edge 打开 HTTPS 网页');
-      emit('htai:connection', { connected: false });
-      return;
-    }
-
-    try {
-      setStatus('正在选择 HTAI-JJ...');
-      device = await navigator.bluetooth.requestDevice({
-        filters: [{ namePrefix: 'HTAI-JJ' }],
-        optionalServices: [UART_SERVICE]
-      });
-      device.addEventListener('gattserverdisconnected', () => {
-        writeCharacteristic = null;
-        setStatus('连接已断开');
-        showToast('蓝牙连接已断开，请重新连接');
-        emit('htai:connection', { connected: false });
-      });
-      const server = await device.gatt.connect();
-      const service = await server.getPrimaryService(UART_SERVICE);
-      writeCharacteristic = await service.getCharacteristic(UART_RX);
-      const notify = await service.getCharacteristic(UART_TX);
-      await notify.startNotifications();
-      notify.addEventListener('characteristicvaluechanged', (event) => {
-        const value = decoder.decode(event.target.value);
-        value.split(/[\r\n]+/).forEach(handleSignal);
-      });
-      setStatus(`已连接 ${device.name || 'HTAI-JJ'}`, true);
-      showToast('蓝牙连接成功');
-      emit('htai:connection', { connected: true });
-    } catch (error) {
-      setStatus('未连接 HTAI-JJ');
-      showToast(`连接失败：${error.message || error}`);
-      emit('htai:connection', { connected: false });
-    }
-  }
-
-  function disconnectBluetooth() {
-    if (device && device.gatt && device.gatt.connected) device.gatt.disconnect();
-    writeCharacteristic = null;
-    setStatus('已主动断开');
-    emit('htai:connection', { connected: false });
-  }
-
-  async function sendCommand(command, options = {}) {
-    const quiet = Boolean(options.quiet);
-    if (!writeCharacteristic) {
-      if (!quiet) showToast('请先连接 HTAI-JJ');
-      return false;
-    }
-    try {
-      await writeCharacteristic.writeValue(encoder.encode(command));
-      if (!quiet) showToast(`已发送：${command}`);
-      return true;
-    } catch (error) {
-      if (!quiet) showToast(`发送失败：${error.message || error}`);
-      return false;
-    }
-  }
-
-  // 答对/答错时发送反馈到掌控板
-  // correct: boolean, level: 'easy'|'normal'|'hard'
-  // 答对: 发 STAR(最高级5秒闪烁) / QOK2(中级闪烁) / QOK1(低级亮灯)
-  // 答错: 发 QBAD(亮黄灯)
-  function sendAnswerResult(correct, qLevel) {
-    if (correct) {
-      // 根据难度发不同级别的灯效指令
-      if (qLevel === 'hard') {
-        return sendCommand('STAR', { quiet: true });      // 最高级：5秒星空闪烁
-      } else if (qLevel === 'normal') {
-        return sendCommand('QOK2_FLASH', { quiet: true }); // 中级：2~3秒闪烁
-      } else {
-        return sendCommand('QOK1', { quiet: true });       // 低级：直接亮灯
-      }
-    } else {
-      return sendCommand('QBAD', { quiet: true });           // 答错：亮黄灯
-    }
-  }
-
-  // 分三组发送答题统计，掌控板用短指令握手接收动态数字。
-  async function sendQuizStats(scoreVal, correctCount, wrongCount, level) {
-    const levelText = level === 'hard' ? '挑战' : level === 'normal' ? '中等' : '简单';
-    const packets = [
-      ['STAT_SCORE', `积分:${scoreVal}`],
-      ['STAT_RESULT', `答对:${correctCount} 答错:${wrongCount}`],
-      ['STAT_LEVEL', `难度:${levelText}`]
-    ];
-    let sent = true;
-    for (const [header, value] of packets) {
-      sent = await sendCommand(header, { quiet: true }) && sent;
-      sent = await sendCommand(value, { quiet: true }) && sent;
-    }
-    return sent;
-  }
-
-  // 发送题目和选项到掌控板
-  // 格式: DATA_QUESTION|{题目编号}|{题目文字}|{A选项}|{B选项}|{C选项}|{D选项}
-  function sendQuestion(index, question, optA, optB, optC, optD) {
-    const cmd = `DATA_QUESTION|${index}|${question}|${optA}|${optB}|${optC}|${optD}`;
-    return sendCommand(cmd, { quiet: true });
-  }
-
-  // 发送关键词到掌控板（跑马灯滚动）
-  // 格式: DATA_KEY|{关键词内容}
-  function sendKeyword(keyword) {
-    const cmd = `DATA_KEY|${keyword}`;
-    return sendCommand(cmd, { quiet: true });
-  }
-
-  // 发送模式切换指令
-  function sendMode(modeName) {
-    return sendCommand(`MODE_${modeName}`, { quiet: true });
-  }
-
-  // 发送TTS播报文本到掌控板（让掌控板朗读屏幕内容）
-  // 硬件 DATA_TTS 分支检查 r == 'DATA_TTS'，所以必须保留前缀
-  // 硬件端无法做字符串切割，TTS 会读出完整字符串（含 "DATA_TTS|" 前缀）
-  // 实际效果：TTS "DATA_TTS回答正确，加十分" — 硬件限制，暂接受
-  function sendTTS(text) {
-    return sendCommand(`DATA_TTS|${text}`, { quiet: true });
+    return parseMaybeJson(value);
   }
 
   async function tinyWebDbRequest(action, extra = {}) {
@@ -243,7 +127,11 @@
     });
     const response = await fetch(tinyWebDbUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+      mode: 'cors',
+      cache: 'no-store',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+      },
       body
     });
     if (!response.ok) throw new Error(`TinyWebDB ${response.status}`);
@@ -255,37 +143,265 @@
     }
   }
 
-  async function loadQuizStats() {
-    const result = await tinyWebDbRequest('get', { tag: tinyWebDbTag });
-    const raw = typeof result === 'string'
-      ? result
-      : (result?.value ?? result?.data?.value ?? '');
-    if (!raw) return null;
-    try {
-      const stats = typeof raw === 'string' ? JSON.parse(raw) : raw;
-      return stats && typeof stats === 'object' ? stats : null;
-    } catch {
-      return null;
+  async function readTag(tag) {
+    const result = await tinyWebDbRequest('get', { tag });
+    return unwrapValue(result, tag);
+  }
+
+  async function writeTag(tag, value) {
+    return tinyWebDbRequest('update', {
+      tag,
+      value: typeof value === 'string' ? value : JSON.stringify(value)
+    });
+  }
+
+  function normalizeThemeCode(value) {
+    const parsed = unwrapValue(value);
+    if (parsed && typeof parsed === 'object') {
+      return normalizeThemeCode(parsed.code || parsed.theme || parsed.topic || parsed.value);
+    }
+    const raw = String(parsed || '').trim().toUpperCase();
+    if (themeAliases[raw] !== undefined) return themeAliases[raw];
+    if (window.AppData.themes[raw]) return raw;
+    return '';
+  }
+
+  function normalizeStats(value) {
+    const parsed = unwrapValue(value);
+    if (!parsed || typeof parsed !== 'object') return null;
+    return {
+      score: Number(parsed.score || 0),
+      correct: Number(parsed.correct || 0),
+      wrong: Number(parsed.wrong || 0),
+      level: ['easy', 'normal', 'hard'].includes(parsed.level) ? parsed.level : 'easy',
+      updatedAt: String(parsed.updatedAt || '')
+    };
+  }
+
+  function normalizeMode(value) {
+    const raw = String(unwrapValue(value) || '').trim().toLowerCase();
+    return ['idle', 'dati', 'keyword', 'theme', 'countdown'].includes(raw) ? raw : 'idle';
+  }
+
+  function normalizeAnswer(value) {
+    const raw = String(unwrapValue(value) || '').trim().toUpperCase();
+    if (/^ANSWER_[A-D]$/.test(raw)) return raw.slice(-1);
+    if (/^[A-D]$/.test(raw)) return raw;
+    return '';
+  }
+
+  async function readCloudSnapshot() {
+    const results = await Promise.allSettled([
+      readTag(tags.topic),
+      readTag(tags.legacyTopic),
+      readTag(tags.page),
+      readTag(tags.mode),
+      readTag(tags.stats),
+      readTag(tags.answer)
+    ]);
+    if (!results.some((item) => item.status === 'fulfilled')) {
+      throw new Error('TinyWebDB 无响应');
+    }
+    const values = results.map((item) => item.status === 'fulfilled' ? item.value : '');
+
+    const topic = normalizeThemeCode(values[0]) || normalizeThemeCode(values[1]);
+    return {
+      topic,
+      page: String(unwrapValue(values[2]) || ''),
+      mode: normalizeMode(values[3]),
+      stats: normalizeStats(values[4]),
+      answer: normalizeAnswer(values[5])
+    };
+  }
+
+  function openThemeFromCloud(code) {
+    if (!code) return;
+    setThemeCode(code);
+    emit('htai:topic', { code, source: 'cloud' });
+    emit('htai:theme', { code, source: 'cloud' });
+    if (document.body?.dataset.page === 'science' && window.AppScience) {
+      window.AppScience.activate(code, true);
+      return;
+    }
+    if (document.body?.dataset.page !== 'quiz') {
+      location.href = `science.html?v=network1&theme=${encodeURIComponent(code)}&source=cloud`;
     }
   }
 
-  async function syncQuizStats(stats) {
-    return tinyWebDbRequest('update', {
-      tag: tinyWebDbTag,
-      value: JSON.stringify({
-        score: Number(stats.score || 0),
-        correct: Number(stats.correct || 0),
-        wrong: Number(stats.wrong || 0),
-        level: String(stats.level || 'easy'),
+  function openPageFromCloud(snapshot) {
+    const page = String(snapshot.page || '').toLowerCase();
+    const mode = snapshot.mode;
+    const target = mode === 'dati' || mode === 'countdown' || page === 'quiz'
+      ? 'quiz.html?v=network2&mode=dati'
+      : mode === 'keyword'
+        ? `science.html?v=network2&mode=keyword&theme=${encodeURIComponent(getThemeCode('A'))}`
+        : mode === 'theme' || page === 'science'
+          ? 'science.html?v=network2&mode=theme'
+          : '';
+    if (!target || location.pathname.endsWith(target.split('?')[0])) return;
+    location.href = target;
+  }
+
+  function publishSnapshot(snapshot) {
+    const changed = JSON.stringify(snapshot) !== JSON.stringify(lastSnapshot);
+    if (!changed) return;
+    const previous = lastSnapshot;
+    lastSnapshot = snapshot;
+
+    if (snapshot.stats && JSON.stringify(snapshot.stats) !== JSON.stringify(previous?.stats)) {
+      emit('htai:stats', snapshot.stats);
+    }
+    if (snapshot.answer && snapshot.answer !== previous?.answer) {
+      emit('htai:answer', { letter: snapshot.answer, source: 'cloud' });
+      writeTag(tags.answer, '').catch(() => {});
+    }
+    if (snapshot.mode !== previous?.mode) {
+      emit('htai:mode', { mode: snapshot.mode, source: 'cloud' });
+      localStorage.setItem('htai-mode', snapshot.mode);
+      if (snapshot.mode !== 'idle') openPageFromCloud(snapshot);
+    }
+    if (snapshot.topic && snapshot.topic !== lastTopicCode) {
+      lastTopicCode = snapshot.topic;
+      writeTag(tags.topic, '').catch(() => {});
+      openThemeFromCloud(snapshot.topic);
+    }
+  }
+
+  async function pollCloud() {
+    if (pollBusy) return;
+    pollBusy = true;
+    try {
+      const snapshot = await readCloudSnapshot();
+      const firstSuccess = !networkReady;
+      networkReady = true;
+      setStatus('网络同步正常', true);
+      if (firstSuccess) emit('htai:connection', { connected: true, source: 'cloud' });
+      publishSnapshot(snapshot);
+    } catch (error) {
+      const firstFailure = networkReady;
+      networkReady = false;
+      setStatus('网络暂时不可用', false);
+      if (firstFailure) emit('htai:connection', { connected: false, source: 'cloud' });
+    } finally {
+      pollBusy = false;
+    }
+  }
+
+  function startCloudPolling() {
+    if (pollTimer) clearInterval(pollTimer);
+    pollCloud();
+    pollTimer = setInterval(pollCloud, 2500);
+  }
+
+  function commandTarget(command) {
+    const modeMap = {
+      MODE_DATI: { mode: 'dati', page: 'quiz' },
+      MODE_KEYWORD: { mode: 'keyword', page: 'science' },
+      MODE_THEME: { mode: 'theme', page: 'science' },
+      MODE_COUNTDOWN: { mode: 'countdown', page: 'quiz' },
+      MODE_IDLE: { mode: 'idle', page: 'home' }
+    };
+    if (modeMap[command]) {
+      return Promise.all([
+        writeTag(tags.mode, modeMap[command].mode),
+        writeTag(tags.page, modeMap[command].page),
+        writeTag(tags.command, command)
+      ]);
+    }
+    if (/^TIME_(5|6|7|8|9|10)$/.test(command)) {
+      return writeTag(tags.command, command);
+    }
+    if (command.startsWith('DATA_KEY:')) {
+      return writeTag(tags.keyword, command.slice(9));
+    }
+    if (command === 'STAR' || command === 'QOK1' || command === 'QOK2_FLASH' || command === 'QBAD') {
+      return writeTag(tags.effect, command);
+    }
+    if (command.startsWith('STAT_')) {
+      return writeTag(tags.command, command);
+    }
+    if (command.startsWith('ACH')) {
+      return writeTag(tags.command, command);
+    }
+    return writeTag(tags.command, command);
+  }
+
+  async function sendCommand(command, options = {}) {
+    const quiet = Boolean(options.quiet);
+    if (!networkReady) {
+      if (!quiet) showToast('网络未连接，暂时不能发送');
+      return false;
+    }
+    try {
+      await commandTarget(String(command));
+      if (!quiet) showToast(`已写入网络：${command}`);
+      return true;
+    } catch (error) {
+      if (!quiet) showToast(`网络写入失败：${error.message || error}`);
+      return false;
+    }
+  }
+
+  function sendMode(modeName) {
+    return sendCommand(`MODE_${String(modeName).toUpperCase()}`, { quiet: true });
+  }
+
+  function sendAnswerResult(correct, level) {
+    const effect = correct
+      ? (level === 'hard' ? 'STAR' : level === 'normal' ? 'QOK2_FLASH' : 'QOK1')
+      : 'QBAD';
+    return Promise.all([
+      writeTag(tags.effect, effect),
+      writeTag('HTAI_LAST_RESULT', JSON.stringify({
+        correct: Boolean(correct),
+        level,
         updatedAt: new Date().toISOString()
-      })
+      }))
+    ]).catch(() => false);
+  }
+
+  function sendQuizStats(score, correct, wrong, level) {
+    return syncQuizStats({ score, correct, wrong, level });
+  }
+
+  function sendQuestion(index, question, optA, optB, optC, optD) {
+    return writeTag(tags.question, {
+      index,
+      question,
+      options: [optA, optB, optC, optD],
+      updatedAt: new Date().toISOString()
+    }).catch(() => false);
+  }
+
+  function sendKeyword(keyword) {
+    return writeTag(tags.keyword, keyword).catch(() => false);
+  }
+
+  function sendTTS(text) {
+    return writeTag(tags.tts, text).catch(() => false);
+  }
+
+  async function loadQuizStats() {
+    return normalizeStats(await readTag(tags.stats).catch(() => null));
+  }
+
+  async function syncQuizStats(stats) {
+    return writeTag(tags.stats, {
+      score: Number(stats.score || 0),
+      correct: Number(stats.correct || 0),
+      wrong: Number(stats.wrong || 0),
+      level: String(stats.level || 'easy'),
+      updatedAt: new Date().toISOString()
     });
   }
 
   function initCommon() {
-    setStatus(latestStatus);
-    $('#btConnect')?.addEventListener('click', connectBluetooth);
-    $('#btDisconnect')?.addEventListener('click', disconnectBluetooth);
+    setStatus(latestStatus, false);
+    startCloudPolling();
+    $('#cloudRefresh')?.addEventListener('click', () => {
+      pollCloud();
+      showToast('正在刷新网络状态');
+    });
     $all('[data-send-command]').forEach((button) => {
       button.addEventListener('click', () => sendCommand(button.dataset.sendCommand));
     });
@@ -297,19 +413,20 @@
   window.App = {
     getThemeCode,
     setThemeCode,
-    handleSignal,
-    connectBluetooth,
-    disconnectBluetooth,
-    isBluetoothConnected,
+    isNetworkReady,
+    isBluetoothConnected: isNetworkReady,
     sendCommand,
+    sendMode,
     sendAnswerResult,
     sendQuizStats,
     sendQuestion,
     sendKeyword,
-    sendMode,
     sendTTS,
     loadQuizStats,
     syncQuizStats,
+    tinyWebDbRequest,
+    readTag,
+    writeTag,
     showToast,
     $,
     $all

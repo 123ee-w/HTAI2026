@@ -19,12 +19,12 @@
       </div>
     </header>
 
-    <section class="bt-card compact" data-bluetooth-panel>
+    <section class="bt-card compact" data-network-panel>
       <div>
-        <strong>蓝牙状态</strong>
-        <span id="btStatus">未连接 HTAI-JJ</span>
+        <strong>网络同步</strong>
+        <span id="cloudStatus">正在连接 TinyWebDB</span>
       </div>
-      <button id="btConnect" type="button">连接</button>
+      <button id="cloudRefresh" class="secondary" type="button">刷新</button>
     </section>
 
     <section class="panel">
@@ -43,10 +43,10 @@
       </div>
       <div class="tag-grid" id="achievementTags"></div>
       <div class="button-row two">
-        <button id="syncAchievement" type="button">同步到好搭屏幕</button>
+        <button id="syncAchievement" type="button">同步成就</button>
         <a class="button secondary" href="quiz.html">继续答题</a>
       </div>
-      <p class="muted">同步会发送 ACH0 / ACH1 / ACH2 / ACH3，硬件显示固定称号，避免中文乱码。</p>
+      <p class="muted">同步会写入 ACH0 / ACH1 / ACH2 / ACH3，网络版掌控板可据此显示固定称号。</p>
     </section>
 
     <section class="panel">

@@ -4,10 +4,10 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>答题区</title>
-  <link rel="stylesheet" href="assets/app.css?v=remote4" />
+  <link rel="stylesheet" href="assets/app.css?v=network2" />
   <script src="assets/app-data.js?v=remote6" defer></script>
-  <script src="assets/app-common.js?v=tech1" defer></script>
-  <script src="assets/quiz.js?v=reward1" defer></script>
+  <script src="assets/app-common.js?v=network2" defer></script>
+  <script src="assets/quiz.js?v=network2" defer></script>
 </head>
 <body data-page="quiz">
   <main class="app-page">
@@ -19,12 +19,12 @@
       </div>
     </header>
 
-    <section class="bt-card compact" data-bluetooth-panel>
+    <section class="bt-card compact" data-network-panel>
       <div>
-        <strong>蓝牙状态</strong>
-        <span id="btStatus">未连接 HTAI-JJ</span>
+        <strong>网络同步</strong>
+        <span id="cloudStatus">正在连接 TinyWebDB</span>
       </div>
-      <button id="btConnect" type="button">连接</button>
+      <button id="cloudRefresh" class="secondary" type="button">刷新</button>
     </section>
 
     <section class="panel">
@@ -34,7 +34,7 @@
         <div><span>答错</span><strong id="wrongText">0 题</strong></div>
         <div><span>难度</span><strong id="levelText">简单</strong></div>
       </div>
-      <p class="muted stats-note">数据保存在当前浏览器，刷新后继续累计。</p>
+    <p class="muted stats-note">数据保存在当前浏览器，并同步到 TinyWebDB。</p>
     </section>
 
     <section class="panel">

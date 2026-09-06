@@ -12,17 +12,17 @@
   <main class="app-page home-page">
     <section class="home-hero">
       <div class="orbit-mark">HTAI</div>
-      <p class="eyebrow">蓝牙联动版</p>
+      <p class="eyebrow">网络联动版</p>
       <h1>中国航天配套科普 APP</h1>
-      <p class="hero-copy">像小程序一样打开，连接好搭掌控后，语音或扫码会自动跳到对应科普与答题。</p>
+      <p class="hero-copy">像小程序一样打开，掌控板语音识别后通过 TinyWebDB 同步到手机，自动跳到对应科普与答题。</p>
     </section>
 
     <section class="bt-card compact">
       <div>
-        <strong>蓝牙连接</strong>
-        <span>请进入联动页后再连接 HTAI-JJ</span>
+        <strong>网络同步</strong>
+        <span id="cloudStatus">正在连接 TinyWebDB</span>
       </div>
-      <a class="button" href="device.html?v=remote5">去联动页连接</a>
+      <a class="button" href="device.html?v=network2">打开联动页</a>
     </section>
 
     <section class="entry-grid" aria-label="首页入口">
@@ -32,7 +32,7 @@
       </a>
       <a class="entry-card device" href="device.html?v=remote5">
         <span>联动装置</span>
-        <small>连接蓝牙，发送灯光与音乐指令</small>
+        <small>查看网络状态，选择四种互动模式</small>
       </a>
       <a class="entry-card quiz" href="quiz.html">
         <span>答题区</span>
@@ -46,7 +46,7 @@
 
     <section class="tip-card">
       <strong>现场提示</strong>
-      <p>按硬件 H 或说“答题”时，网页会直接进入答题区；H 不再作为科普视频主题。</p>
+      <p>掌控板说出主题后，网页通过 TinyWebDB 自动切换视频；说“答题”进入答题区。</p>
     </section>
   </main>
 
