@@ -155,6 +155,58 @@
     }
   }
 
+  // 答对/答错时发送反馈到掌控板
+  // correct: boolean, level: 'easy'|'normal'|'hard'
+  // 答对: 发 STAR(最高级5秒闪烁) / QOK2(中级闪烁) / QOK1(低级亮灯)
+  // 答错: 发 QBAD(亮黄灯)
+  function sendAnswerResult(correct, qLevel) {
+    if (correct) {
+      // 根据难度发不同级别的灯效指令
+      if (qLevel === 'hard') {
+        return sendCommand('STAR', { quiet: true });      // 最高级：5秒星空闪烁
+      } else if (qLevel === 'normal') {
+        return sendCommand('QOK2_FLASH', { quiet: true }); // 中级：2~3秒闪烁
+      } else {
+        return sendCommand('QOK1', { quiet: true });       // 低级：直接亮灯
+      }
+    } else {
+      return sendCommand('QBAD', { quiet: true });           // 答错：亮黄灯
+    }
+  }
+
+  // 发送答题统计数据到掌控板（积分+答对+答错）
+  // 格式: DATA_DATI|{积分}|{本次答对}|{本次答错}
+  function sendQuizStats(scoreVal, correctCount, wrongCount) {
+    const cmd = `DATA_DATI|${scoreVal}|${correctCount}|${wrongCount}`;
+    return sendCommand(cmd, { quiet: true });
+  }
+
+  // 发送题目和选项到掌控板
+  // 格式: DATA_QUESTION|{题目编号}|{题目文字}|{A选项}|{B选项}|{C选项}|{D选项}
+  function sendQuestion(index, question, optA, optB, optC, optD) {
+    const cmd = `DATA_QUESTION|${index}|${question}|${optA}|${optB}|${optC}|${optD}`;
+    return sendCommand(cmd, { quiet: true });
+  }
+
+  // 发送关键词到掌控板（跑马灯滚动）
+  // 格式: DATA_KEY|{关键词内容}
+  function sendKeyword(keyword) {
+    const cmd = `DATA_KEY|${keyword}`;
+    return sendCommand(cmd, { quiet: true });
+  }
+
+  // 发送模式切换指令
+  function sendMode(modeName) {
+    return sendCommand(`MODE_${modeName}`, { quiet: true });
+  }
+
+  // 发送TTS播报文本到掌控板（让掌控板朗读屏幕内容）
+  // 格式: DATA_TTS|{播报文本}
+  function sendTTS(text) {
+    const cmd = `DATA_TTS|${text}`;
+    return sendCommand(cmd, { quiet: true });
+  }
+
   function initCommon() {
     setStatus(latestStatus);
     $('#btConnect')?.addEventListener('click', connectBluetooth);
@@ -175,6 +227,12 @@
     disconnectBluetooth,
     isBluetoothConnected,
     sendCommand,
+    sendAnswerResult,
+    sendQuizStats,
+    sendQuestion,
+    sendKeyword,
+    sendMode,
+    sendTTS,
     showToast,
     $,
     $all

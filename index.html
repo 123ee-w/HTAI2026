@@ -3,93 +3,58 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
-  <meta http-equiv="Pragma" content="no-cache" />
-  <meta http-equiv="Expires" content="0" />
-  <title>青少年航天科普互动系统</title>
-  <link rel="stylesheet" href="assets/app.css?v=tech8" />
-  <script src="assets/app-data.js?v=tech8" defer></script>
-  <script src="assets/app-common.js?v=tech8" defer></script>
+  <title>航天AI讲解机</title>
+  <link rel="stylesheet" href="assets/app.css?v=remote4" />
+  <script src="assets/app-data.js?v=remote6" defer></script>
+  <script src="assets/app-common.js?v=tech1" defer></script>
 </head>
 <body data-page="home">
   <main class="app-page home-page">
-    <section class="home-hero cover-hero">
-      <div class="cover-stars"></div>
-      <div class="cover-top">
-        <p class="eyebrow">Space Science Link</p>
-        <h1>青少年航天科普互动系统</h1>
-        <p id="homeNarrationText" class="hero-copy">火箭点火升空，冲破云层，带着青少年的航天梦想飞向星辰大海。</p>
-      </div>
-      <div class="planet-video-wrap" aria-label="火箭发射循环主视觉">
-        <video id="homeVideo" class="planet-video" autoplay muted loop playsinline preload="auto" poster="assets/videos/home-launch-preview.png?v=tech8">
-          <source src="assets/videos/home-launch.mp4?v=tech8" type="video/mp4" />
-        </video>
-        <div class="planet-ring one"></div>
-        <div class="planet-ring two"></div>
-        <button id="homeSound" class="center-play" type="button" aria-label="打开或关闭首页讲解声音">开声</button>
-      </div>
-      <nav class="mission-nav" aria-label="首页导航">
-        <a href="science.html?v=tech8">科普视频</a>
-        <a href="device.html?v=tech8">联动装置</a>
-        <a href="quiz.html?v=tech8">答题区</a>
-        <a href="rank.html?v=tech8">排行榜</a>
-      </nav>
+    <section class="home-hero">
+      <div class="orbit-mark">HTAI</div>
+      <p class="eyebrow">蓝牙联动版</p>
+      <h1>中国航天配套科普 APP</h1>
+      <p class="hero-copy">像小程序一样打开，连接好搭掌控后，语音或扫码会自动跳到对应科普与答题。</p>
     </section>
 
     <section class="bt-card compact">
       <div>
         <strong>蓝牙连接</strong>
-        <span>请进入联动页后再连接 HTAI-JJ，避免跳页断开。</span>
+        <span>请进入联动页后再连接 HTAI-JJ</span>
       </div>
-      <a class="button" href="device.html?v=tech8">去联动页连接</a>
+      <a class="button" href="device.html?v=remote5">去联动页连接</a>
+    </section>
+
+    <section class="entry-grid" aria-label="首页入口">
+      <a class="entry-card science" href="science.html?v=tech1">
+        <span>科普视频</span>
+        <small>神舟、天宫、火箭、月球、火星、北斗、大飞机、合集</small>
+      </a>
+      <a class="entry-card device" href="device.html?v=remote5">
+        <span>联动装置</span>
+        <small>连接蓝牙，发送灯光与音乐指令</small>
+      </a>
+      <a class="entry-card quiz" href="quiz.html">
+        <span>答题区</span>
+        <small>三种难度，答对加分，错题重做</small>
+      </a>
+      <a class="entry-card rank" href="rank.html">
+        <span>排行榜</span>
+        <small>查看积分和展示称号</small>
+      </a>
     </section>
 
     <section class="tip-card">
       <strong>现场提示</strong>
-      <p>收到 A/B/P/Y/T/O/N/QR 会进入对应科普；收到 ALL 播放合集；收到 H 直接进入答题区。</p>
+      <p>按硬件 H 或说“答题”时，网页会直接进入答题区；H 不再作为科普视频主题。</p>
     </section>
   </main>
 
   <nav class="bottom-nav" aria-label="底部导航">
-    <a class="active" href="index.html?v=tech8">首页</a>
-    <a href="science.html?v=tech8">科普</a>
-    <a href="device.html?v=tech8">联动</a>
-    <a href="quiz.html?v=tech8">答题</a>
+    <a class="active" href="index.html">首页</a>
+    <a href="science.html?v=tech1">科普</a>
+    <a href="device.html?v=remote5">联动</a>
+    <a href="quiz.html">答题</a>
   </nav>
-
-  <script>
-    let homeSpeaking = false;
-    document.getElementById('homeSound')?.addEventListener('click', async () => {
-      const video = document.getElementById('homeVideo');
-      const button = document.getElementById('homeSound');
-      const text = document.getElementById('homeNarrationText')?.textContent || '火箭点火升空，飞向太空。';
-      try {
-        video.muted = true;
-        await video.play();
-        if (!('speechSynthesis' in window)) return;
-        if (homeSpeaking) {
-          window.speechSynthesis.cancel();
-          homeSpeaking = false;
-          button.textContent = '开声';
-          return;
-        }
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'zh-CN';
-        utterance.rate = 0.9;
-        utterance.pitch = 1.02;
-        utterance.onend = () => {
-          homeSpeaking = false;
-          button.textContent = '开声';
-        };
-        utterance.onerror = utterance.onend;
-        homeSpeaking = true;
-        button.textContent = '停声';
-        window.speechSynthesis.speak(utterance);
-      } catch (error) {
-        button.textContent = '开声';
-      }
-    });
-  </script>
 </body>
 </html>

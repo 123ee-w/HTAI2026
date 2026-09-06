@@ -118,6 +118,25 @@
     startCountdown(getCountdownSeconds());
   }
 
+  // 本次开机答题统计（独立于 localStorage 持久化分数）
+  let sessionCorrect = 0;
+  let sessionWrong = 0;
+
+  function sendStatsToHardware() {
+    window.App.sendQuizStats && window.App.sendQuizStats(score, sessionCorrect, sessionWrong);
+  }
+
+  function sendTTS(text) {
+    window.App.sendTTS && window.App.sendTTS(text);
+  }
+
+  function sendQuestionToHardware() {
+    if (!current) return;
+    const idx = window.AppData.quiz.indexOf(current);
+    const opts = current.options;
+    window.App.sendQuestion && window.App.sendQuestion(idx + 1, current.q, opts[0], opts[1], opts[2], opts[3]);
+  }
+
   function renderQuestion(notice) {
     window.App.$('#questionText').textContent = current.q;
     const grid = window.App.$('#choiceGrid');
@@ -131,6 +150,8 @@
     const explain = window.App.$('#answerExplanation');
     explain.hidden = true;
     explain.textContent = '';
+    sendQuestionToHardware();
+    sendStatsToHardware();
   }
 
   function renderAnsweredState(message) {
@@ -148,24 +169,29 @@
     const buttons = window.App.$all('[data-choice]');
     if (choice === current.a) {
       score += 10;
+      sessionCorrect++;
       buttons.find((item) => item.dataset.choice === choice)?.classList.add('correct');
       wrongList = wrongList.filter((item) => item.q !== current.q);
       window.App.$('#quizNotice').textContent = '回答正确，积分 +10。';
       renderAnsweredState('回答正确');
-      sendReward(rewardByLevel[level]);
+      window.App.sendAnswerResult && window.App.sendAnswerResult(true, level);
+      sendTTS('回答正确，加十分');
     } else {
       score -= 10;
+      sessionWrong++;
       buttons.find((item) => item.dataset.choice === choice)?.classList.add('wrong');
       buttons.find((item) => item.dataset.choice === current.a)?.classList.add('correct');
       if (!wrongList.some((item) => item.q === current.q)) wrongList.push(current);
       window.App.$('#quizNotice').textContent = `回答错误，积分 -10。正确答案：${current.a}`;
       renderAnsweredState('回答错误');
-      sendReward('QBAD');
+      window.App.sendAnswerResult && window.App.sendAnswerResult(false, level);
+      sendTTS('回答错误，扣十分');
     }
     renderScore();
     save();
     renderWrongList();
     showExplanation();
+    sendStatsToHardware();
     advanceTimer = setTimeout(nextQuestion, 1800);
   }
 
@@ -220,6 +246,9 @@
   function initQuiz() {
     renderScore();
     renderWrongList();
+    window.App.sendMode && window.App.sendMode('DATI');
+    // 初始化时发送当前积分到掌控板（积分保留逻辑）
+    sendStatsToHardware();
     window.App.$all('[data-level]').forEach((button) => {
       button.addEventListener('click', () => {
         level = button.dataset.level;

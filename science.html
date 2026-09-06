@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8" />
@@ -7,18 +7,18 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <title>科普视频</title>
-  <link rel="stylesheet" href="assets/app.css?v=tech8" />
-  <script src="assets/app-data.js?v=tech8" defer></script>
-  <script src="assets/app-common.js?v=tech8" defer></script>
-  <script src="assets/science.js?v=tech8" defer></script>
+  <link rel="stylesheet" href="assets/app.css?v=science-text3" />
+  <script src="assets/app-data.js?v=science-all1" defer></script>
+  <script src="assets/app-common.js?v=tech1" defer></script>
+  <script src="assets/science.js?v=tech1" defer></script>
 </head>
 <body data-page="science">
   <main class="app-page">
     <header class="topbar">
-      <a class="back" href="device.html?v=tech8" aria-label="返回联动装置">‹</a>
+      <a class="back" href="index.html" aria-label="返回首页">‹</a>
       <div class="title-wrap">
         <h1>科普视频</h1>
-        <div class="subtitle">每个主题都有对应画面和声音</div>
+        <div class="subtitle">每个主题一个科技感动态短视频</div>
       </div>
     </header>
 
@@ -30,24 +30,13 @@
       <button id="btConnect" type="button">连接</button>
     </section>
 
-    <section class="panel" id="modeNoticePanel" hidden>
-      <h2>当前互动模式</h2>
-      <p class="muted" id="scienceModeNotice">普通科普浏览。</p>
-    </section>
-
-    <section class="panel" id="themeSelectorPanel">
+    <section class="panel">
       <h2>选择主题</h2>
       <div class="theme-grid" id="themeGrid"></div>
     </section>
 
-    <section class="panel" id="keywordPanel" hidden>
-      <h2>关键词滚动</h2>
-      <div class="keyword-scroll" id="keywordScroll"></div>
-    </section>
-
     <section class="video-card">
-      <div id="videoFrame" class="video-frame" hidden></div>
-      <video id="themeVideo" autoplay muted loop playsinline preload="auto"></video>
+      <video id="themeVideo" controls playsinline preload="auto"></video>
       <div class="video-body">
         <span class="badge"><span id="themeCode">A</span><span id="themeTitle">神舟飞船</span></span>
         <h2 id="videoLabel">神舟飞船科普视频</h2>
@@ -58,20 +47,17 @@
           <div class="science-prompt" id="themePrompt"></div>
         </div>
         <p class="muted" id="themeSource"></p>
-        <div class="button-row two">
-          <button id="soundToggle" type="button">打开声音</button>
-          <button id="speakScience" class="secondary" type="button">朗读讲解</button>
-        </div>
+        <button id="playVideo" type="button">播放视频并打开声音</button>
       </div>
     </section>
   </main>
 
   <div class="toast" id="toast" hidden></div>
   <nav class="bottom-nav" aria-label="底部导航">
-    <a href="index.html?v=tech8">首页</a>
-    <a class="active" href="science.html?v=tech8">科普</a>
-    <a href="device.html?v=tech8">联动</a>
-    <a href="quiz.html?v=tech8">答题</a>
+    <a href="index.html">首页</a>
+    <a class="active" href="science.html?v=tech1">科普</a>
+    <a href="device.html?v=remote5">联动</a>
+    <a href="quiz.html">答题</a>
   </nav>
 </body>
 </html>

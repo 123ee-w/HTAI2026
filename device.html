@@ -7,18 +7,17 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <title>联动装置</title>
-  <link rel="stylesheet" href="assets/app.css?v=tech8" />
-  <script src="assets/app-data.js?v=tech8" defer></script>
-  <script src="assets/app-common.js?v=tech8" defer></script>
-  <script src="assets/device.js?v=tech8" defer></script>
+  <link rel="stylesheet" href="assets/app.css?v=remote5" />
+  <script src="assets/app-data.js?v=remote6" defer></script>
+  <script src="assets/app-common.js?v=tech1" defer></script>
 </head>
 <body data-page="device">
   <main class="app-page">
     <header class="topbar">
-      <a class="back" href="index.html?v=tech8" aria-label="返回首页">‹</a>
+      <a class="back" href="index.html" aria-label="返回首页">‹</a>
       <div class="title-wrap">
         <h1>联动装置</h1>
-        <div class="subtitle">连接 HTAI-JJ，选择互动模式</div>
+        <div class="subtitle">连接 HTAI-JJ，控制好搭掌控灯光和音乐</div>
       </div>
     </header>
 
@@ -31,58 +30,32 @@
       <button id="btDisconnect" class="secondary" type="button">断开</button>
     </section>
 
-    <section class="panel mode-panel">
-      <h2>模式选择</h2>
-      <p class="muted" id="modeHint">连接 HTAI-JJ 后解锁，未连接时模式按钮不可用。</p>
-      <div class="mode-grid">
-        <button class="mode-button" data-mode="dati" type="button" disabled>
-          <span>答题模式</span>
-          <small>掌控板按键答题，网页判分讲解</small>
-        </button>
-        <button class="mode-button" data-mode="keyword" type="button" disabled>
-          <span>关键词模式</span>
-          <small>视频讲解同步滚动关键词</small>
-        </button>
-        <button class="mode-button" data-mode="theme" type="button" disabled>
-          <span>主题选择模式</span>
-          <small>掌控板选择主题，网页播放</small>
-        </button>
-        <button class="mode-button idle" data-mode="idle" type="button" disabled>
-          <span>返回待机</span>
-          <small>回到蓝牙状态与当前模式</small>
-        </button>
-      </div>
-      <p class="muted" id="currentModeText">当前模式：待机</p>
-    </section>
-
     <section class="panel">
-      <h2>高级控制</h2>
-      <p class="muted">保留旧版声光控制，不影响模式选择。</p>
+      <h2>远程控制</h2>
       <div class="remote-grid">
         <button data-send-command="STAR" type="button">星空动画</button>
         <button data-send-command="MUSIC" type="button">播放航天音乐</button>
         <button class="warn" data-send-command="WARN" type="button">灯光告警</button>
       </div>
+      <p class="muted">这里不再放“设备自检”。收到硬件 A/B/P/Y/T/O/N/QR 会进入科普视频，收到 H 会进入答题。</p>
     </section>
 
     <section class="panel">
       <h2>通信协议</h2>
       <ul class="list">
-        <li>网页发送 MODE_DATI / MODE_KEYWORD / MODE_THEME / MODE_IDLE。</li>
-        <li>网页发送 TIME_5 / TIME_10 启动答题倒计时。</li>
-        <li>网页发送 DATA_KEY:关键词，掌控板同步滚动。</li>
-        <li>掌控板回传 ANSWER_A/B/C/D、THEME_1..7。</li>
-        <li>旧指令 A/B/P/Y/T/O/N/H/QR/ALL 继续兼容。</li>
+        <li>硬件发 A/B/P/Y/T/O/N/QR：网页切换对应科普主题。</li>
+        <li>硬件发 H：网页直接进入答题区。</li>
+        <li>网页按钮发送 STAR / MUSIC / WARN：好搭掌控做声光反馈。</li>
       </ul>
     </section>
   </main>
 
   <div class="toast" id="toast" hidden></div>
   <nav class="bottom-nav" aria-label="底部导航">
-    <a href="index.html?v=tech8">首页</a>
-    <a href="science.html?v=tech8">科普</a>
-    <a class="active" href="device.html?v=tech8">联动</a>
-    <a href="quiz.html?v=tech8">答题</a>
+    <a href="index.html">首页</a>
+    <a href="science.html?v=tech1">科普</a>
+    <a class="active" href="device.html?v=remote5">联动</a>
+    <a href="quiz.html">答题</a>
   </nav>
 </body>
 </html>
