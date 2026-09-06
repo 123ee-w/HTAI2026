@@ -4,6 +4,21 @@
   const UART_TX = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
   const encoder = new TextEncoder();
   const decoder = new TextDecoder('utf-8');
+  const tinyWebDbUrl = 'https://tinywebdb.appinventor.space/api';
+  const tinyWebDbUser = 'tsc123';
+  const tinyWebDbSecret = '56f57fef';
+  const tinyWebDbTag = 'HTAI_QUIZ_STATS';
+  const voiceIdMap = {
+    '53': 'A',
+    '54': 'B',
+    '55': 'P',
+    '56': 'Y',
+    '57': 'T',
+    '58': 'O',
+    '59': 'N',
+    '60': 'H',
+    '61': 'ALL'
+  };
 
   let device = null;
   let writeCharacteristic = null;
@@ -56,6 +71,8 @@
     let clean = String(text || '').trim().toUpperCase();
     if (!clean) return '';
     clean = clean.replace(/^B['"]/, '').replace(/['"]$/, '').trim();
+    clean = clean.replace(/^VOICE[_-]?ID[_-]?/, '');
+    if (voiceIdMap[clean]) return voiceIdMap[clean];
     if (/^(OK|STAR|MUSIC|WARN|CHECK|QOK1|QOK2|QOK3|QBAD|ACH[0-3])(:|$)/.test(clean)) return '';
     if (/^ANSWER_[A-D]$/.test(clean)) return clean;
     if (/^THEME_[1-7]$/.test(clean)) return clean;
@@ -174,11 +191,20 @@
     }
   }
 
-  // 发送答题统计数据到掌控板（积分+答对+答错）
-  // 格式: DATA_DATI|{积分}|{本次答对}|{本次答错}
-  function sendQuizStats(scoreVal, correctCount, wrongCount) {
-    const cmd = `DATA_DATI|${scoreVal}|${correctCount}|${wrongCount}`;
-    return sendCommand(cmd, { quiet: true });
+  // 分三组发送答题统计，掌控板用短指令握手接收动态数字。
+  async function sendQuizStats(scoreVal, correctCount, wrongCount, level) {
+    const levelText = level === 'hard' ? '挑战' : level === 'normal' ? '中等' : '简单';
+    const packets = [
+      ['STAT_SCORE', `积分:${scoreVal}`],
+      ['STAT_RESULT', `答对:${correctCount} 答错:${wrongCount}`],
+      ['STAT_LEVEL', `难度:${levelText}`]
+    ];
+    let sent = true;
+    for (const [header, value] of packets) {
+      sent = await sendCommand(header, { quiet: true }) && sent;
+      sent = await sendCommand(value, { quiet: true }) && sent;
+    }
+    return sent;
   }
 
   // 发送题目和选项到掌控板
@@ -201,10 +227,59 @@
   }
 
   // 发送TTS播报文本到掌控板（让掌控板朗读屏幕内容）
-  // 格式: DATA_TTS|{播报文本}
+  // 硬件 DATA_TTS 分支检查 r == 'DATA_TTS'，所以必须保留前缀
+  // 硬件端无法做字符串切割，TTS 会读出完整字符串（含 "DATA_TTS|" 前缀）
+  // 实际效果：TTS "DATA_TTS回答正确，加十分" — 硬件限制，暂接受
   function sendTTS(text) {
-    const cmd = `DATA_TTS|${text}`;
-    return sendCommand(cmd, { quiet: true });
+    return sendCommand(`DATA_TTS|${text}`, { quiet: true });
+  }
+
+  async function tinyWebDbRequest(action, extra = {}) {
+    const body = new URLSearchParams({
+      user: tinyWebDbUser,
+      secret: tinyWebDbSecret,
+      action,
+      ...extra
+    });
+    const response = await fetch(tinyWebDbUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+      body
+    });
+    if (!response.ok) throw new Error(`TinyWebDB ${response.status}`);
+    const text = await response.text();
+    try {
+      return JSON.parse(text);
+    } catch {
+      return text;
+    }
+  }
+
+  async function loadQuizStats() {
+    const result = await tinyWebDbRequest('get', { tag: tinyWebDbTag });
+    const raw = typeof result === 'string'
+      ? result
+      : (result?.value ?? result?.data?.value ?? '');
+    if (!raw) return null;
+    try {
+      const stats = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      return stats && typeof stats === 'object' ? stats : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async function syncQuizStats(stats) {
+    return tinyWebDbRequest('update', {
+      tag: tinyWebDbTag,
+      value: JSON.stringify({
+        score: Number(stats.score || 0),
+        correct: Number(stats.correct || 0),
+        wrong: Number(stats.wrong || 0),
+        level: String(stats.level || 'easy'),
+        updatedAt: new Date().toISOString()
+      })
+    });
   }
 
   function initCommon() {
@@ -233,6 +308,8 @@
     sendKeyword,
     sendMode,
     sendTTS,
+    loadQuizStats,
+    syncQuizStats,
     showToast,
     $,
     $all

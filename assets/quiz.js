@@ -1,6 +1,8 @@
 (function () {
   const scoreKey = 'htai-score';
   const wrongKey = 'htai-wrong-list';
+  const correctKey = 'htai-correct-count';
+  const incorrectKey = 'htai-incorrect-count';
   const rewardByLevel = {
     easy: 'QOK1',
     normal: 'QOK2',
@@ -11,6 +13,8 @@
   const hardwareMode = params.get('mode') === 'dati';
 
   let score = Number(localStorage.getItem(scoreKey) || 0);
+  let totalCorrect = Number(localStorage.getItem(correctKey) || 0);
+  let totalWrong = Number(localStorage.getItem(incorrectKey) || 0);
   let level = 'easy';
   let current = null;
   let currentChoices = [];
@@ -24,6 +28,14 @@
   function save() {
     localStorage.setItem(scoreKey, String(score));
     localStorage.setItem(wrongKey, JSON.stringify(wrongList));
+    localStorage.setItem(correctKey, String(totalCorrect));
+    localStorage.setItem(incorrectKey, String(totalWrong));
+    window.App.syncQuizStats?.({
+      score,
+      correct: totalCorrect,
+      wrong: totalWrong,
+      level
+    }).catch(() => {});
   }
 
   function shuffle(list) {
@@ -36,6 +48,9 @@
 
   function renderScore() {
     window.App.$('#scoreText').textContent = score;
+    window.App.$('#correctText').textContent = `${totalCorrect} 题`;
+    window.App.$('#wrongText').textContent = `${totalWrong} 题`;
+    window.App.$('#levelText').textContent = level === 'hard' ? '挑战' : level === 'normal' ? '进阶' : '简单';
   }
 
   function sendReward(command) {
@@ -122,19 +137,15 @@
   let sessionCorrect = 0;
   let sessionWrong = 0;
 
+  // 发送当前累计统计：掌控板屏幕显示积分、答对、答错和难度
   function sendStatsToHardware() {
-    window.App.sendQuizStats && window.App.sendQuizStats(score, sessionCorrect, sessionWrong);
+    if (window.App.sendQuizStats) {
+      window.App.sendQuizStats(score, totalCorrect, totalWrong, level).catch(() => {});
+    }
   }
 
   function sendTTS(text) {
     window.App.sendTTS && window.App.sendTTS(text);
-  }
-
-  function sendQuestionToHardware() {
-    if (!current) return;
-    const idx = window.AppData.quiz.indexOf(current);
-    const opts = current.options;
-    window.App.sendQuestion && window.App.sendQuestion(idx + 1, current.q, opts[0], opts[1], opts[2], opts[3]);
   }
 
   function renderQuestion(notice) {
@@ -150,7 +161,6 @@
     const explain = window.App.$('#answerExplanation');
     explain.hidden = true;
     explain.textContent = '';
-    sendQuestionToHardware();
     sendStatsToHardware();
   }
 
@@ -170,15 +180,18 @@
     if (choice === current.a) {
       score += 10;
       sessionCorrect++;
+      totalCorrect++;
       buttons.find((item) => item.dataset.choice === choice)?.classList.add('correct');
       wrongList = wrongList.filter((item) => item.q !== current.q);
       window.App.$('#quizNotice').textContent = '回答正确，积分 +10。';
       renderAnsweredState('回答正确');
       window.App.sendAnswerResult && window.App.sendAnswerResult(true, level);
-      sendTTS('回答正确，加十分');
+      const levelText = level === 'hard' ? '挑战难度' : level === 'normal' ? '中等难度' : '简单难度';
+      sendTTS('答对了，' + levelText);
     } else {
       score -= 10;
       sessionWrong++;
+      totalWrong++;
       buttons.find((item) => item.dataset.choice === choice)?.classList.add('wrong');
       buttons.find((item) => item.dataset.choice === current.a)?.classList.add('correct');
       if (!wrongList.some((item) => item.q === current.q)) wrongList.push(current);
@@ -243,12 +256,28 @@
     if (choice) selectChoice(choice);
   }
 
-  function initQuiz() {
+  async function initQuiz() {
+    const cloudStats = await window.App.loadQuizStats?.().catch(() => null);
+    const hasLocalStats = [scoreKey, correctKey, incorrectKey].some((key) => localStorage.getItem(key) !== null);
+    if (!hasLocalStats && cloudStats) {
+      score = Number(cloudStats.score || 0);
+      totalCorrect = Number(cloudStats.correct || 0);
+      totalWrong = Number(cloudStats.wrong || 0);
+      level = ['easy', 'normal', 'hard'].includes(cloudStats.level) ? cloudStats.level : level;
+      localStorage.setItem(scoreKey, String(score));
+      localStorage.setItem(correctKey, String(totalCorrect));
+      localStorage.setItem(incorrectKey, String(totalWrong));
+    }
     renderScore();
     renderWrongList();
-    window.App.sendMode && window.App.sendMode('DATI');
     // 初始化时发送当前积分到掌控板（积分保留逻辑）
     sendStatsToHardware();
+    window.App.syncQuizStats?.({
+      score,
+      correct: totalCorrect,
+      wrong: totalWrong,
+      level
+    }).catch(() => {});
     window.App.$all('[data-level]').forEach((button) => {
       button.addEventListener('click', () => {
         level = button.dataset.level;

@@ -388,6 +388,25 @@ p { line-height: 1.68; }
   text-shadow: 0 0 18px rgba(255, 224, 138, .35);
 }
 
+.quiz-stats {
+  display: grid;
+  gap: 8px;
+}
+
+.quiz-stats > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 42px;
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(123, 218, 255, .16);
+}
+
+.quiz-stats > div:last-child { border-bottom: 0; }
+.quiz-stats span { color: var(--muted); }
+.quiz-stats strong { color: #ffe08a; font-size: 20px; }
+.stats-note { margin: 10px 0 0; }
+
 .question-box {
   padding: 14px;
   border: 1px solid rgba(255, 184, 77, .28);

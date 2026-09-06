@@ -23,31 +23,17 @@
     window.App.$('#themeSource').textContent = data.source;
 
     const video = window.App.$('#themeVideo');
-    const frame = window.App.$('#videoFrame');
-    const soundToggle = window.App.$('#soundToggle');
-    if (data.bvid) {
-      frame.hidden = false;
-      frame.innerHTML = `<iframe src="https://player.bilibili.com/player.html?bvid=${data.bvid}&page=1&high_quality=1&danmaku=0" allow="autoplay; fullscreen" allowfullscreen></iframe>`;
-      video.hidden = true;
-      video.removeAttribute('src');
-      video.load();
-      if (soundToggle) soundToggle.hidden = true;
-    } else {
-      frame.hidden = true;
-      frame.innerHTML = '';
-      video.hidden = false;
-      video.src = data.video + (data.video.includes('?') ? '&' : '?') + 'v=tech8';
-      video.muted = true;
-      video.loop = true;
-      video.autoplay = true;
-      video.volume = 1;
-      video.play().catch(() => {});
-      if (soundToggle) {
-        soundToggle.hidden = false;
-        soundToggle.textContent = '打开声音';
-      }
-    }
-
+    if (!video) return;
+    video.hidden = false;
+    const status = window.App.$('#videoStatus');
+    if (status) status.textContent = '';
+    video.src = data.video + (data.video.includes('?') ? '&' : '?') + 'v=local9';
+    video.muted = true;
+    video.loop = true;
+    video.autoplay = true;
+    video.volume = 1;
+    video.load();
+    video.play().catch(() => {});
     window.App.$all('.theme-button').forEach((button) => {
       button.classList.toggle('active', button.dataset.theme === data.code);
     });
@@ -113,14 +99,28 @@
     window.App.$all('.theme-button', grid).forEach((button) => {
       button.addEventListener('click', () => activate(button.dataset.theme));
     });
-    window.App.$('#soundToggle').addEventListener('click', async () => {
+    const playVideo = window.App.$('#playVideo');
+    const toggleSound = async () => {
       const video = window.App.$('#themeVideo');
       video.muted = !video.muted;
-      window.App.$('#soundToggle').textContent = video.muted ? '打开声音' : '关闭声音';
+      if (playVideo) playVideo.textContent = video.muted ? '播放视频并打开声音' : '关闭声音';
       try {
         await video.play();
       } catch (error) {
         window.App.showToast('浏览器限制声音，请再点一次声音按钮');
+      }
+    };
+    playVideo?.addEventListener('click', async () => {
+      if (video.paused) {
+        video.muted = false;
+        try {
+          await video.play();
+          playVideo.textContent = '关闭声音';
+        } catch (error) {
+          window.App.showToast('视频暂时无法播放，请再点一次播放按钮');
+        }
+      } else {
+        await toggleSound();
       }
     });
     window.App.$('#speakScience')?.addEventListener('click', () => {
@@ -140,6 +140,13 @@
     });
 
     const video = window.App.$('#themeVideo');
+    const videoStatus = window.App.$('#videoStatus');
+    video.addEventListener('error', () => {
+      if (videoStatus) videoStatus.textContent = '视频加载失败，请检查本地 assets/videos 文件是否完整。';
+    });
+    video.addEventListener('loadeddata', () => {
+      if (videoStatus) videoStatus.textContent = '';
+    });
     video.addEventListener('loadedmetadata', () => {
       if (requestedMode === 'keyword') scheduleKeywords();
     });
@@ -155,19 +162,19 @@
     const modeNoticePanel = window.App.$('#modeNoticePanel');
 
     if (requestedMode === 'keyword') {
-      themeSelector.hidden = true;
-      keywordPanel.hidden = false;
-      modeNoticePanel.hidden = false;
-      modeNotice.textContent = '关键词模式：网页与掌控板同步滚动当前主题讲解词。';
+      if (themeSelector) themeSelector.hidden = true;
+      if (keywordPanel) keywordPanel.hidden = false;
+      if (modeNoticePanel) modeNoticePanel.hidden = false;
+      if (modeNotice) modeNotice.textContent = '关键词模式：网页与掌控板同步滚动当前主题讲解词。';
     } else if (requestedMode === 'theme') {
-      themeSelector.hidden = true;
-      keywordPanel.hidden = true;
-      modeNoticePanel.hidden = false;
-      modeNotice.textContent = '主题选择模式：请按掌控板选择 1-7，网页等待硬件回传。';
+      if (themeSelector) themeSelector.hidden = true;
+      if (keywordPanel) keywordPanel.hidden = true;
+      if (modeNoticePanel) modeNoticePanel.hidden = false;
+      if (modeNotice) modeNotice.textContent = '主题选择模式：请按掌控板选择 1-7，网页等待硬件回传。';
     } else {
-      themeSelector.hidden = false;
-      keywordPanel.hidden = true;
-      modeNoticePanel.hidden = true;
+      if (themeSelector) themeSelector.hidden = false;
+      if (keywordPanel) keywordPanel.hidden = true;
+      if (modeNoticePanel) modeNoticePanel.hidden = true;
     }
 
     activate(window.App.getThemeCode('A'));

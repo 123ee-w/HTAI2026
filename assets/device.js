@@ -15,6 +15,11 @@
       command: 'MODE_THEME',
       href: 'science.html?v=tech8&mode=theme'
     },
+    countdown: {
+      label: '倒计时模式',
+      command: 'MODE_DATI',
+      href: 'quiz.html?v=tech8&mode=dati'
+    },
     idle: {
       label: '待机',
       command: 'MODE_IDLE',

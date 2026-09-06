@@ -28,13 +28,13 @@
     </section>
 
     <section class="panel">
-      <div class="score-line">
-        <div>
-          <h2>我的积分</h2>
-          <span class="muted">本机浏览器自动保存</span>
-        </div>
-        <strong id="scoreText">0</strong>
+      <div class="quiz-stats" aria-label="答题统计">
+        <div><span>积分</span><strong id="scoreText">0</strong></div>
+        <div><span>答对</span><strong id="correctText">0 题</strong></div>
+        <div><span>答错</span><strong id="wrongText">0 题</strong></div>
+        <div><span>难度</span><strong id="levelText">简单</strong></div>
       </div>
+      <p class="muted stats-note">数据保存在当前浏览器，刷新后继续累计。</p>
     </section>
 
     <section class="panel">
@@ -53,9 +53,11 @@
       <div class="button-row">
         <button id="nextQuestion" type="button">下一题</button>
         <button id="speakQuestion" class="secondary" type="button">朗读题目</button>
+        <button id="speakExplain" class="secondary" type="button">朗读讲解</button>
         <a class="button secondary" href="rank.html">看排行</a>
       </div>
       <p class="muted" id="quizNotice">请选择一个答案。</p>
+      <div class="answer-explanation" id="answerExplanation" hidden></div>
     </section>
 
     <section class="panel">

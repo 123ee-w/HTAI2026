@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="assets/app.css?v=remote5" />
   <script src="assets/app-data.js?v=remote6" defer></script>
   <script src="assets/app-common.js?v=tech1" defer></script>
+  <script src="assets/device.js?v=mode6" defer></script>
 </head>
 <body data-page="device">
   <main class="app-page">
@@ -30,14 +31,38 @@
       <button id="btDisconnect" class="secondary" type="button">断开</button>
     </section>
 
+    <section class="panel mode-panel">
+      <h2>模式选择</h2>
+      <p class="muted" id="modeHint">连接 HTAI-JJ 后解锁，未连接时模式按钮不可用。</p>
+      <div class="mode-grid">
+        <button class="mode-button" data-mode="dati" type="button">
+          <span>答题模式</span>
+          <small>掌控板回传答案，网页统计积分、答对和答错。</small>
+        </button>
+        <button class="mode-button" data-mode="keyword" type="button">
+          <span>关键词模式</span>
+          <small>手机播放当前科普视频，关键词同步发送到掌控板。</small>
+        </button>
+        <button class="mode-button" data-mode="theme" type="button">
+          <span>主题选择模式</span>
+          <small>等待掌控板语音选择神舟、天宫等七个主题。</small>
+        </button>
+        <button class="mode-button" data-mode="countdown" type="button">
+          <span>倒计时模式</span>
+          <small>进入网页答题计时界面，时间由系统自动安排。</small>
+        </button>
+      </div>
+      <p class="muted" id="currentModeText">当前模式：待机</p>
+    </section>
+
     <section class="panel">
-      <h2>远程控制</h2>
+      <h2>高级控制</h2>
       <div class="remote-grid">
         <button data-send-command="STAR" type="button">星空动画</button>
         <button data-send-command="MUSIC" type="button">播放航天音乐</button>
         <button class="warn" data-send-command="WARN" type="button">灯光告警</button>
       </div>
-      <p class="muted">这里不再放“设备自检”。收到硬件 A/B/P/Y/T/O/N/QR 会进入科普视频，收到 H 会进入答题。</p>
+      <p class="muted">语音识别说出主题后，网页直接打开对应科普视频；掌控板只负责语音合成和灯光反馈。</p>
     </section>
 
     <section class="panel">

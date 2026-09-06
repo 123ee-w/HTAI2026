@@ -7,10 +7,10 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <title>科普视频</title>
-  <link rel="stylesheet" href="assets/app.css?v=science-text3" />
-  <script src="assets/app-data.js?v=science-all1" defer></script>
-  <script src="assets/app-common.js?v=tech1" defer></script>
-  <script src="assets/science.js?v=tech1" defer></script>
+  <link rel="stylesheet" href="assets/app.css?v=science-fix-20260906" />
+  <script src="assets/app-data.js?v=science-fix-20260906" defer></script>
+  <script src="assets/app-common.js?v=science-fix-20260906" defer></script>
+  <script src="assets/science.js?v=science-fix-20260906" defer></script>
 </head>
 <body data-page="science">
   <main class="app-page">
@@ -30,13 +30,25 @@
       <button id="btConnect" type="button">连接</button>
     </section>
 
-    <section class="panel">
+    <section class="panel" id="modeNoticePanel" hidden>
+      <strong id="scienceModeNotice"></strong>
+    </section>
+
+    <section class="panel" id="keywordPanel" hidden>
+      <h2>当前关键词</h2>
+      <div class="keyword-scroll" id="keywordScroll">等待关键词发送...</div>
+    </section>
+
+    <section class="panel" id="themeSelectorPanel">
       <h2>选择主题</h2>
       <div class="theme-grid" id="themeGrid"></div>
     </section>
 
     <section class="video-card">
-      <video id="themeVideo" controls playsinline preload="auto"></video>
+      <video id="themeVideo" controls playsinline preload="auto" poster="assets/videos/science-video-preview-tech3.png">
+        <source src="assets/videos/shenzhou-web.mp4" type="video/mp4" />
+      </video>
+      <p class="video-status" id="videoStatus" role="status"></p>
       <div class="video-body">
         <span class="badge"><span id="themeCode">A</span><span id="themeTitle">神舟飞船</span></span>
         <h2 id="videoLabel">神舟飞船科普视频</h2>
