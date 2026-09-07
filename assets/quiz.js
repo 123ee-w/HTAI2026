@@ -29,12 +29,24 @@
   let wrongList = JSON.parse(localStorage.getItem(wrongKey) || '[]');
   let lastQuestionKey = '';
   let lastStatsUpdatedAt = Number(localStorage.getItem('htai-stats-updated-at') || 0);
+  let modeAnnounced = false;
+  let modeAnnouncing = false;
+
+  async function announceQuizMode() {
+    if (modeAnnounced || modeAnnouncing || !window.App.isNetworkReady?.()) return;
+    modeAnnouncing = true;
+    const wanted = params.get('mode') === 'countdown' ? 'COUNTDOWN' : 'DATI';
+    const sent = await window.App.sendMode?.(wanted).catch(() => false);
+    modeAnnounced = Boolean(sent);
+    modeAnnouncing = false;
+  }
 
   function save() {
     localStorage.setItem(scoreKey, String(score));
     localStorage.setItem(wrongKey, JSON.stringify(wrongList));
     localStorage.setItem(correctKey, String(totalCorrect));
     localStorage.setItem(incorrectKey, String(totalWrong));
+    localStorage.setItem('htai-level', level);
     const updatedAt = new Date().toISOString();
     lastStatsUpdatedAt = Date.parse(updatedAt);
     localStorage.setItem('htai-stats-updated-at', String(lastStatsUpdatedAt));
@@ -77,6 +89,7 @@
     localStorage.setItem(scoreKey, String(score));
     localStorage.setItem(correctKey, String(totalCorrect));
     localStorage.setItem(incorrectKey, String(totalWrong));
+    localStorage.setItem('htai-level', level);
     renderScore();
     window.App.$all('[data-level]').forEach((button) => {
       button.classList.toggle('active', button.dataset.level === level);
@@ -299,9 +312,13 @@
     window.App.$('#speakQuestion').addEventListener('click', speakQuestion);
     window.App.$('#speakExplain').addEventListener('click', speakExplanation);
     window.addEventListener('htai:answer', handleCloudAnswer);
+    window.addEventListener('htai:connection', (event) => {
+      if (event.detail?.connected) announceQuizMode();
+    });
     window.addEventListener('htai:stats', (event) => {
       applyCloudStats(event.detail);
     });
+    announceQuizMode();
     nextQuestion();
   }
 

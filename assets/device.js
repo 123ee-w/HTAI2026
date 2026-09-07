@@ -3,22 +3,22 @@
     dati: {
       label: '答题模式',
       cloudMode: 'DATI',
-      href: 'quiz.html?v=network4&mode=dati'
+      href: 'quiz.html?v=network5&mode=dati'
     },
     keyword: {
       label: '关键词模式',
       cloudMode: 'KEYWORD',
-      href: `science.html?v=network4&mode=keyword&theme=${encodeURIComponent(window.App?.getThemeCode('A') || 'A')}`
+      href: `science.html?v=network5&mode=keyword&theme=${encodeURIComponent(window.App?.getThemeCode('A') || 'A')}`
     },
     theme: {
       label: '主题选择模式',
       cloudMode: 'THEME',
-      href: 'science.html?v=network4&mode=theme'
+      href: 'science.html?v=network5&mode=theme'
     },
     countdown: {
       label: '倒计时模式',
       cloudMode: 'COUNTDOWN',
-      href: 'quiz.html?v=network4&mode=countdown'
+      href: 'quiz.html?v=network5&mode=countdown'
     },
     idle: {
       label: '待机',

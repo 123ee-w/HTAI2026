@@ -186,7 +186,10 @@
 
   function normalizeMode(value) {
     const raw = String(unwrapValue(value) || '').trim().toLowerCase();
-    return ['idle', 'dati', 'keyword', 'theme', 'countdown'].includes(raw) ? raw : 'idle';
+    const mode = raw.startsWith('mode_') ? raw.slice(5) : raw;
+    const aliases = { answer: 'dati', quiz: 'dati', dati: 'dati' };
+    const normalized = aliases[mode] || mode;
+    return ['idle', 'dati', 'keyword', 'theme', 'countdown'].includes(normalized) ? normalized : 'idle';
   }
 
   function normalizeAnswer(value) {
@@ -230,7 +233,7 @@
       return;
     }
     if (document.body?.dataset.page === 'index') {
-      location.href = `science.html?v=network4&theme=${encodeURIComponent(code)}&source=cloud`;
+      location.href = `science.html?v=network5&theme=${encodeURIComponent(code)}&source=cloud`;
     }
   }
 
@@ -238,11 +241,11 @@
     const page = String(snapshot.page || '').toLowerCase();
     const mode = snapshot.mode;
     const target = mode === 'dati' || mode === 'countdown'
-      ? 'quiz.html?v=network4&mode=dati'
+      ? 'quiz.html?v=network5&mode=dati'
       : mode === 'keyword'
-        ? `science.html?v=network4&mode=keyword&theme=${encodeURIComponent(getThemeCode('A'))}`
+        ? `science.html?v=network5&mode=keyword&theme=${encodeURIComponent(getThemeCode('A'))}`
         : mode === 'theme'
-          ? 'science.html?v=network4&mode=theme'
+          ? 'science.html?v=network5&mode=theme'
           : '';
     if (!target || location.pathname.endsWith(target.split('?')[0])) return;
     location.href = target;
@@ -356,7 +359,8 @@
   }
 
   function sendMode(modeName) {
-    return sendCommand(`MODE_${String(modeName).toUpperCase()}`, { quiet: true });
+    const cleanMode = String(modeName).trim().toUpperCase().replace(/^MODE_/, '');
+    return sendCommand(`MODE_${cleanMode}`, { quiet: true });
   }
 
   function sendAnswerResult(correct, level) {
