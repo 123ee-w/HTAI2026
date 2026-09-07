@@ -3,9 +3,16 @@
   const wrongKey = 'htai-wrong-list';
   const correctKey = 'htai-correct-count';
   const incorrectKey = 'htai-incorrect-count';
+  const quizVersionKey = 'htai-quiz-data-version';
+  const quizVersion = 'seven-topic-bank-20260906';
 
   const params = new URLSearchParams(location.search);
   const networkMode = ['dati', 'countdown'].includes(params.get('mode'));
+
+  if (localStorage.getItem(quizVersionKey) !== quizVersion) {
+    localStorage.removeItem(wrongKey);
+    localStorage.setItem(quizVersionKey, quizVersion);
+  }
 
   let score = Number(localStorage.getItem(scoreKey) || 0);
   let totalCorrect = Number(localStorage.getItem(correctKey) || 0);
@@ -18,15 +25,26 @@
   let countdownRemaining = 0;
   let advanceTimer = null;
   let usedQuestions = new Set();
+  let questionSerial = 0;
   let wrongList = JSON.parse(localStorage.getItem(wrongKey) || '[]');
   let lastQuestionKey = '';
+  let lastStatsUpdatedAt = Number(localStorage.getItem('htai-stats-updated-at') || 0);
 
   function save() {
     localStorage.setItem(scoreKey, String(score));
     localStorage.setItem(wrongKey, JSON.stringify(wrongList));
     localStorage.setItem(correctKey, String(totalCorrect));
     localStorage.setItem(incorrectKey, String(totalWrong));
-    window.App.syncQuizStats?.({ score, correct: totalCorrect, wrong: totalWrong, level }).catch(() => {});
+    const updatedAt = new Date().toISOString();
+    lastStatsUpdatedAt = Date.parse(updatedAt);
+    localStorage.setItem('htai-stats-updated-at', String(lastStatsUpdatedAt));
+    window.App.syncQuizStats?.({
+      score,
+      correct: totalCorrect,
+      wrong: totalWrong,
+      level,
+      updatedAt
+    }).catch(() => {});
   }
 
   function shuffle(list) {
@@ -42,6 +60,28 @@
     window.App.$('#correctText').textContent = `${totalCorrect} 题`;
     window.App.$('#wrongText').textContent = `${totalWrong} 题`;
     window.App.$('#levelText').textContent = level === 'hard' ? '挑战' : level === 'normal' ? '进阶' : '简单';
+  }
+
+  function applyCloudStats(stats, force = false) {
+    if (!stats) return false;
+    const cloudTime = Date.parse(stats.updatedAt || '') || 0;
+    if (!force && cloudTime && cloudTime < lastStatsUpdatedAt) return false;
+    score = Number(stats.score || 0);
+    totalCorrect = Number(stats.correct || 0);
+    totalWrong = Number(stats.wrong || 0);
+    if (['easy', 'normal', 'hard'].includes(stats.level)) level = stats.level;
+    if (cloudTime) {
+      lastStatsUpdatedAt = cloudTime;
+      localStorage.setItem('htai-stats-updated-at', String(cloudTime));
+    }
+    localStorage.setItem(scoreKey, String(score));
+    localStorage.setItem(correctKey, String(totalCorrect));
+    localStorage.setItem(incorrectKey, String(totalWrong));
+    renderScore();
+    window.App.$all('[data-level]').forEach((button) => {
+      button.classList.toggle('active', button.dataset.level === level);
+    });
+    return true;
   }
 
   function clearCountdown() {
@@ -118,6 +158,7 @@
     usedQuestions.add(current.q);
     lastQuestionKey = current.q;
     currentChoices = shuffle(current.options);
+    questionSerial += 1;
     answered = false;
     renderQuestion(networkMode ? '请选择答案，结果会同步到网络。' : '请选择答案。');
     startCountdown(getCountdownSeconds());
@@ -230,19 +271,20 @@
 
   async function initQuiz() {
     const cloudStats = await window.App.loadQuizStats?.().catch(() => null);
-    const hasLocalStats = [scoreKey, correctKey, incorrectKey].some((key) => localStorage.getItem(key) !== null);
-    if (!hasLocalStats && cloudStats) {
-      score = Number(cloudStats.score || 0);
-      totalCorrect = Number(cloudStats.correct || 0);
-      totalWrong = Number(cloudStats.wrong || 0);
-      level = ['easy', 'normal', 'hard'].includes(cloudStats.level) ? cloudStats.level : level;
-      localStorage.setItem(scoreKey, String(score));
-      localStorage.setItem(correctKey, String(totalCorrect));
-      localStorage.setItem(incorrectKey, String(totalWrong));
-    }
+    const appliedCloudStats = cloudStats ? applyCloudStats(cloudStats, true) : false;
     renderScore();
     renderWrongList();
-    window.App.syncQuizStats?.({ score, correct: totalCorrect, wrong: totalWrong, level }).catch(() => {});
+    if (!appliedCloudStats) {
+      window.App.syncQuizStats?.({
+        score,
+        correct: totalCorrect,
+        wrong: totalWrong,
+        level,
+        updatedAt: lastStatsUpdatedAt
+          ? new Date(lastStatsUpdatedAt).toISOString()
+          : new Date().toISOString()
+      }).catch(() => {});
+    }
 
     window.App.$all('[data-level]').forEach((button) => {
       button.addEventListener('click', () => {
@@ -258,8 +300,7 @@
     window.App.$('#speakExplain').addEventListener('click', speakExplanation);
     window.addEventListener('htai:answer', handleCloudAnswer);
     window.addEventListener('htai:stats', (event) => {
-      if (answered || !event.detail) return;
-      renderScore();
+      applyCloudStats(event.detail);
     });
     nextQuestion();
   }

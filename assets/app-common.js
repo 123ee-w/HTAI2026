@@ -43,6 +43,7 @@
   let networkReady = false;
   let pollTimer = null;
   let pollBusy = false;
+  let writeQueue = Promise.resolve();
   let latestStatus = '正在连接 TinyWebDB';
   let lastSnapshot = null;
   let lastTopicCode = '';
@@ -149,10 +150,13 @@
   }
 
   async function writeTag(tag, value) {
-    return tinyWebDbRequest('update', {
+    const operation = () => tinyWebDbRequest('update', {
       tag,
       value: typeof value === 'string' ? value : JSON.stringify(value)
     });
+    const result = writeQueue.then(operation, operation);
+    writeQueue = result.catch(() => {});
+    return result;
   }
 
   function normalizeThemeCode(value) {
@@ -167,13 +171,15 @@
   }
 
   function normalizeStats(value) {
-    const parsed = unwrapValue(value);
+    const parsed = value && typeof value === 'object' && !Array.isArray(value)
+      ? value
+      : unwrapValue(value);
     if (!parsed || typeof parsed !== 'object') return null;
     return {
       score: Number(parsed.score || 0),
       correct: Number(parsed.correct || 0),
       wrong: Number(parsed.wrong || 0),
-      level: ['easy', 'normal', 'hard'].includes(parsed.level) ? parsed.level : 'easy',
+      level: ['idle', 'easy', 'normal', 'hard'].includes(parsed.level) ? parsed.level : 'idle',
       updatedAt: String(parsed.updatedAt || '')
     };
   }
@@ -223,20 +229,20 @@
       window.AppScience.activate(code, true);
       return;
     }
-    if (document.body?.dataset.page !== 'quiz') {
-      location.href = `science.html?v=network1&theme=${encodeURIComponent(code)}&source=cloud`;
+    if (document.body?.dataset.page === 'index') {
+      location.href = `science.html?v=network4&theme=${encodeURIComponent(code)}&source=cloud`;
     }
   }
 
   function openPageFromCloud(snapshot) {
     const page = String(snapshot.page || '').toLowerCase();
     const mode = snapshot.mode;
-    const target = mode === 'dati' || mode === 'countdown' || page === 'quiz'
-      ? 'quiz.html?v=network2&mode=dati'
+    const target = mode === 'dati' || mode === 'countdown'
+      ? 'quiz.html?v=network4&mode=dati'
       : mode === 'keyword'
-        ? `science.html?v=network2&mode=keyword&theme=${encodeURIComponent(getThemeCode('A'))}`
-        : mode === 'theme' || page === 'science'
-          ? 'science.html?v=network2&mode=theme'
+        ? `science.html?v=network4&mode=keyword&theme=${encodeURIComponent(getThemeCode('A'))}`
+        : mode === 'theme'
+          ? 'science.html?v=network4&mode=theme'
           : '';
     if (!target || location.pathname.endsWith(target.split('?')[0])) return;
     location.href = target;
@@ -246,6 +252,7 @@
     const changed = JSON.stringify(snapshot) !== JSON.stringify(lastSnapshot);
     if (!changed) return;
     const previous = lastSnapshot;
+    const firstSnapshot = previous === null;
     lastSnapshot = snapshot;
 
     if (snapshot.stats && JSON.stringify(snapshot.stats) !== JSON.stringify(previous?.stats)) {
@@ -258,11 +265,17 @@
     if (snapshot.mode !== previous?.mode) {
       emit('htai:mode', { mode: snapshot.mode, source: 'cloud' });
       localStorage.setItem('htai-mode', snapshot.mode);
-      if (snapshot.mode !== 'idle') openPageFromCloud(snapshot);
+      // A stored mode is state, not a navigation command. Only a later mode
+      // change from the home or device page may open the requested page.
+      if (!firstSnapshot && snapshot.mode !== 'idle'
+        && ['index', 'device'].includes(document.body?.dataset.page)) {
+        openPageFromCloud(snapshot);
+      }
     }
     if (snapshot.topic && snapshot.topic !== lastTopicCode) {
       lastTopicCode = snapshot.topic;
-      writeTag(tags.topic, '').catch(() => {});
+      // HTAI_TOPIC is shared state. Keep it available long enough for the
+      // board to poll it too; clearing it here caused a read race.
       openThemeFromCloud(snapshot.topic);
     }
   }
@@ -391,7 +404,7 @@
       correct: Number(stats.correct || 0),
       wrong: Number(stats.wrong || 0),
       level: String(stats.level || 'easy'),
-      updatedAt: new Date().toISOString()
+      updatedAt: String(stats.updatedAt || new Date().toISOString())
     });
   }
 

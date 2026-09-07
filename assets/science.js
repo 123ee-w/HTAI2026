@@ -26,7 +26,7 @@
     video.hidden = false;
     const status = window.App.$('#videoStatus');
     if (status) status.textContent = '';
-    video.src = data.video + (data.video.includes('?') ? '&' : '?') + 'v=network1';
+    video.src = data.video + (data.video.includes('?') ? '&' : '?') + 'v=network4';
     video.muted = true;
     video.loop = true;
     video.autoplay = true;
