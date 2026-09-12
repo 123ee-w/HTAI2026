@@ -4,41 +4,48 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>航天AI讲解机</title>
-  <link rel="stylesheet" href="assets/app.css?v=network5" />
+  <link rel="stylesheet" href="assets/app.css?v=ui6" />
   <script src="assets/app-data.js?v=remote6" defer></script>
-  <script src="assets/app-common.js?v=network5" defer></script>
+  <script src="assets/app-common.js?v=ui6" defer></script>
 </head>
 <body data-page="home">
   <main class="app-page home-page">
     <section class="home-hero">
-      <div class="orbit-mark">HTAI</div>
-      <p class="eyebrow">网络联动版</p>
-      <h1>中国航天配套科普 APP</h1>
-      <p class="hero-copy">像小程序一样打开，掌控板语音识别后通过 TinyWebDB 同步到手机，自动跳到对应科普与答题。</p>
+      <div class="orbit-mark" aria-hidden="true">HTAI</div>
+      <p class="eyebrow">中国航天科普 · 网络联动版</p>
+      <h1>中国航天科普</h1>
+      <p class="hero-subtitle">语音联动学习平台</p>
+      <p class="hero-copy">掌控板语音识别，网页自动切换科普内容并同步答题。</p>
+      <a class="button hero-action" href="science.html?v=network5">开始探索</a>
     </section>
 
-    <section class="bt-card compact">
+    <section class="bt-card compact" data-network-panel>
       <div>
         <strong>网络同步</strong>
-        <span id="cloudStatus">正在连接 TinyWebDB</span>
+        <span class="status-line"><i class="status-dot" aria-hidden="true"></i><span id="cloudStatus" aria-live="polite">连接中</span></span>
+        <small id="cloudSyncTime" class="sync-time">尚未同步</small>
       </div>
-      <a class="button" href="device.html?v=network5">打开联动页</a>
+      <a class="button secondary" href="device.html?v=network5">打开联动页</a>
     </section>
 
     <section class="entry-grid" aria-label="首页入口">
       <a class="entry-card science" href="science.html?v=network5">
+        <span class="entry-icon" aria-hidden="true">01</span>
         <span>科普视频</span>
         <small>神舟、天宫、火箭、月球、火星、北斗、大飞机、合集</small>
       </a>
-      <a class="entry-card device" href="device.html?v=network5">
-        <span>联动装置</span>
-        <small>查看网络状态，选择四种互动模式</small>
-      </a>
       <a class="entry-card quiz" href="quiz.html?v=network5&mode=dati">
+        <span class="entry-icon" aria-hidden="true">02</span>
         <span>答题区</span>
         <small>三种难度，答对加分，错题重做</small>
       </a>
+      <a class="entry-card device" href="device.html?v=network5">
+        <span class="entry-icon" aria-hidden="true">03</span>
+        <span>联动装置</span>
+        <small>查看网络状态，选择四种互动模式</small>
+      </a>
       <a class="entry-card rank" href="rank.html">
+        <span class="entry-icon" aria-hidden="true">04</span>
         <span>排行榜</span>
         <small>查看积分和展示称号</small>
       </a>
@@ -55,6 +62,7 @@
     <a href="science.html?v=network5">科普</a>
     <a href="device.html?v=network5">联动</a>
     <a href="quiz.html?v=network5&mode=dati">答题</a>
+    <a href="rank.html">排行</a>
   </nav>
 </body>
 </html>

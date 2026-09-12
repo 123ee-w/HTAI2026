@@ -74,6 +74,16 @@
     window.App.$('#levelText').textContent = level === 'hard' ? '挑战' : level === 'normal' ? '进阶' : '简单';
   }
 
+  function renderProgress() {
+    const total = questionsForLevel().length || 30;
+    const currentNumber = ((questionSerial - 1) % total) + 1;
+    const progress = Math.round((currentNumber / total) * 100);
+    const label = window.App.$('#questionProgress');
+    const bar = window.App.$('#quizProgressBar');
+    if (label) label.textContent = `第 ${currentNumber} / ${total} 题`;
+    if (bar) bar.style.width = `${progress}%`;
+  }
+
   function applyCloudStats(stats, force = false) {
     if (!stats) return false;
     const cloudTime = Date.parse(stats.updatedAt || '') || 0;
@@ -174,6 +184,7 @@
     questionSerial += 1;
     answered = false;
     renderQuestion(networkMode ? '请选择答案，结果会同步到网络。' : '请选择答案。');
+    renderProgress();
     startCountdown(getCountdownSeconds());
   }
 

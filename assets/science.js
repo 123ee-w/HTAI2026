@@ -15,6 +15,8 @@
     document.documentElement.style.setProperty('--theme', data.accent);
     window.App.$('#themeCode').textContent = data.code;
     window.App.$('#themeTitle').textContent = data.title;
+    const activeThemeChip = window.App.$('#activeThemeChip');
+    if (activeThemeChip) activeThemeChip.textContent = `当前主题：${data.shortTitle}`;
     window.App.$('#videoLabel').textContent = data.videoLabel;
     window.App.$('#themeCopy').textContent = data.copy;
     window.App.$('#themeFacts').innerHTML = (data.facts || []).map((item) => `<li>${item}</li>`).join('');
@@ -94,7 +96,7 @@
     const grid = window.App.$('#themeGrid');
     grid.innerHTML = selectableThemeCodes.map((code) => {
       const item = window.AppData.themes[code];
-      return `<button class="theme-button" data-theme="${code}" type="button">${code} · ${item.shortTitle}</button>`;
+      return `<button class="theme-button" data-theme="${code}" type="button"><span class="theme-code">${code}</span><span>${item.shortTitle}</span></button>`;
     }).join('');
     window.App.$all('.theme-button', grid).forEach((button) => {
       button.addEventListener('click', () => activate(button.dataset.theme));

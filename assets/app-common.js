@@ -13,6 +13,7 @@
     tts: 'HTAI_TTS',
     question: 'HTAI_QUESTION',
     stats: 'HTAI_QUIZ_STATS',
+    voiceId: 'HTAI_VOICE_ID',
     legacyTopic: 'current_theme'
   };
 
@@ -44,7 +45,7 @@
   let pollTimer = null;
   let pollBusy = false;
   let writeQueue = Promise.resolve();
-  let latestStatus = '正在连接 TinyWebDB';
+  let latestStatus = '连接中';
   let lastSnapshot = null;
   let lastTopicCode = '';
 
@@ -73,9 +74,27 @@
 
   function setStatus(text, connected) {
     latestStatus = text;
+    const failed = /失败|不可用|错误/.test(text);
     $all('#cloudStatus,#btStatus,[data-cloud-status],[data-bt-status]').forEach((node) => {
       node.textContent = text;
       node.classList.toggle('ok', Boolean(connected));
+      node.classList.toggle('error', failed);
+    });
+    $all('[data-network-panel]').forEach((panel) => {
+      panel.classList.toggle('is-connected', Boolean(connected));
+      panel.classList.toggle('is-error', failed);
+      panel.classList.toggle('is-connecting', !connected && !failed);
+    });
+    $all('#cloudSyncTime').forEach((node) => {
+      if (connected) {
+        node.textContent = `最后同步 ${new Date().toLocaleTimeString('zh-CN', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        })}`;
+      } else if (failed) {
+        node.textContent = '请检查网络后重新连接';
+      }
     });
     $all('[data-send-command], #syncAchievement').forEach((node) => {
       node.disabled = !connected;
@@ -192,6 +211,23 @@
     return ['idle', 'dati', 'keyword', 'theme', 'countdown'].includes(normalized) ? normalized : 'idle';
   }
 
+  function voiceIdTarget(value) {
+    const raw = String(unwrapValue(value) || '').trim().toUpperCase().replace(/^VOICE[_-]?/, '');
+    const id = raw.match(/\d+/)?.[0] || '';
+    const map = {
+      53: { topic: 'A', page: 'science' },
+      54: { topic: 'B', page: 'science' },
+      55: { topic: 'P', page: 'science' },
+      56: { topic: 'Y', page: 'science' },
+      57: { topic: 'T', page: 'science' },
+      58: { topic: 'O', page: 'science' },
+      59: { topic: 'N', page: 'science' },
+      60: { mode: 'dati', page: 'quiz' },
+      61: { topic: 'ALL', page: 'science' }
+    };
+    return id && map[id] ? { id, ...map[id] } : { id: '', topic: '', mode: '', page: '' };
+  }
+
   function normalizeAnswer(value) {
     const raw = String(unwrapValue(value) || '').trim().toUpperCase();
     if (/^ANSWER_[A-D]$/.test(raw)) return raw.slice(-1);
@@ -206,24 +242,29 @@
       readTag(tags.page),
       readTag(tags.mode),
       readTag(tags.stats),
-      readTag(tags.answer)
+      readTag(tags.answer),
+      readTag(tags.voiceId)
     ]);
     if (!results.some((item) => item.status === 'fulfilled')) {
       throw new Error('TinyWebDB 无响应');
     }
     const values = results.map((item) => item.status === 'fulfilled' ? item.value : '');
 
-    const topic = normalizeThemeCode(values[0]) || normalizeThemeCode(values[1]);
+    const voiceTarget = voiceIdTarget(values[6]);
+    const topic = voiceTarget.topic || normalizeThemeCode(values[0]) || normalizeThemeCode(values[1]);
     return {
       topic,
-      page: String(unwrapValue(values[2]) || ''),
-      mode: normalizeMode(values[3]),
+      page: voiceTarget.page || String(unwrapValue(values[2]) || ''),
+      mode: voiceTarget.mode || normalizeMode(values[3]),
       stats: normalizeStats(values[4]),
-      answer: normalizeAnswer(values[5])
+      answer: normalizeAnswer(values[5]),
+      voiceId: voiceTarget.id,
+      voiceTopic: Boolean(voiceTarget.topic),
+      voiceMode: Boolean(voiceTarget.mode)
     };
   }
 
-  function openThemeFromCloud(code) {
+  function openThemeFromCloud(code, options = {}) {
     if (!code) return;
     setThemeCode(code);
     emit('htai:topic', { code, source: 'cloud' });
@@ -232,7 +273,7 @@
       window.AppScience.activate(code, true);
       return;
     }
-    if (document.body?.dataset.page === 'index') {
+    if (options.forceNavigate || document.body?.dataset.page === 'index') {
       location.href = `science.html?v=network5&theme=${encodeURIComponent(code)}&source=cloud`;
     }
   }
@@ -265,21 +306,27 @@
       emit('htai:answer', { letter: snapshot.answer, source: 'cloud' });
       writeTag(tags.answer, '').catch(() => {});
     }
-    if (snapshot.mode !== previous?.mode) {
+    if (snapshot.voiceId) {
+      writeTag(tags.voiceId, '').catch(() => {});
+    }
+    if (snapshot.mode !== previous?.mode || snapshot.voiceMode) {
       emit('htai:mode', { mode: snapshot.mode, source: 'cloud' });
       localStorage.setItem('htai-mode', snapshot.mode);
       // A stored mode is state, not a navigation command. Only a later mode
       // change from the home or device page may open the requested page.
-      if (!firstSnapshot && snapshot.mode !== 'idle'
-        && ['index', 'device'].includes(document.body?.dataset.page)) {
+      if (!snapshot.voiceTopic && snapshot.mode !== 'idle'
+        && (!firstSnapshot || snapshot.voiceMode)
+        && ['home', 'index', 'device'].includes(document.body?.dataset.page)) {
         openPageFromCloud(snapshot);
       }
     }
-    if (snapshot.topic && snapshot.topic !== lastTopicCode) {
+    if (snapshot.topic && (snapshot.topic !== lastTopicCode || snapshot.voiceTopic)) {
       lastTopicCode = snapshot.topic;
       // HTAI_TOPIC is shared state. Keep it available long enough for the
       // board to poll it too; clearing it here caused a read race.
-      openThemeFromCloud(snapshot.topic);
+      if (!firstSnapshot || snapshot.voiceTopic) {
+        openThemeFromCloud(snapshot.topic, { forceNavigate: snapshot.voiceTopic });
+      }
     }
   }
 
@@ -290,13 +337,13 @@
       const snapshot = await readCloudSnapshot();
       const firstSuccess = !networkReady;
       networkReady = true;
-      setStatus('网络同步正常', true);
+      setStatus('已连接', true);
       if (firstSuccess) emit('htai:connection', { connected: true, source: 'cloud' });
       publishSnapshot(snapshot);
     } catch (error) {
       const firstFailure = networkReady;
       networkReady = false;
-      setStatus('网络暂时不可用', false);
+      setStatus('连接失败，请检查网络', false);
       if (firstFailure) emit('htai:connection', { connected: false, source: 'cloud' });
     } finally {
       pollBusy = false;
@@ -321,6 +368,7 @@
       return Promise.all([
         writeTag(tags.mode, modeMap[command].mode),
         writeTag(tags.page, modeMap[command].page),
+        writeTag(tags.voiceId, ''),
         writeTag(tags.command, command)
       ]);
     }
@@ -417,7 +465,7 @@
     startCloudPolling();
     $('#cloudRefresh')?.addEventListener('click', () => {
       pollCloud();
-      showToast('正在刷新网络状态');
+      showToast('正在重新连接');
     });
     $all('[data-send-command]').forEach((button) => {
       button.addEventListener('click', () => sendCommand(button.dataset.sendCommand));

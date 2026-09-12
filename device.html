@@ -7,10 +7,10 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <title>联动装置</title>
-  <link rel="stylesheet" href="assets/app.css?v=network5" />
+  <link rel="stylesheet" href="assets/app.css?v=ui6" />
   <script src="assets/app-data.js?v=remote6" defer></script>
-  <script src="assets/app-common.js?v=network5" defer></script>
-  <script src="assets/device.js?v=network5" defer></script>
+  <script src="assets/app-common.js?v=ui6" defer></script>
+  <script src="assets/device.js?v=ui6" defer></script>
 </head>
 <body data-page="device">
   <main class="app-page">
@@ -25,14 +25,15 @@
     <section class="bt-card" data-network-panel>
       <div>
         <strong>网络状态</strong>
-        <span id="cloudStatus">正在连接 TinyWebDB</span>
+        <span class="status-line"><i class="status-dot" aria-hidden="true"></i><span id="cloudStatus" aria-live="polite">连接中</span></span>
+        <small id="cloudSyncTime" class="sync-time">尚未同步</small>
       </div>
-      <button id="cloudRefresh" class="secondary" type="button">刷新</button>
+      <button id="cloudRefresh" class="secondary" type="button" aria-label="重新连接 TinyWebDB">重新连接</button>
     </section>
 
     <section class="panel mode-panel">
       <h2>模式选择</h2>
-      <p class="muted" id="modeHint">网络同步正常后解锁，网络不可用时模式按钮不可用。</p>
+      <p class="muted" id="modeHint">网络同步正常后解锁，网络不可用时模式按钮暂不可用。</p>
       <div class="mode-grid">
         <button class="mode-button" data-mode="dati" type="button">
           <span>答题模式</span>
@@ -40,15 +41,15 @@
         </button>
         <button class="mode-button" data-mode="keyword" type="button">
           <span>关键词模式</span>
-          <small>手机播放当前科普视频，关键词同步发送到掌控板。</small>
+          <small>播放当前科普视频，并把关键词同步到掌控板。</small>
         </button>
         <button class="mode-button" data-mode="theme" type="button">
           <span>主题选择模式</span>
-          <small>等待掌控板语音选择神舟、天宫等七个主题。</small>
+          <small>等待掌控板语音选择七个科普主题。</small>
         </button>
         <button class="mode-button" data-mode="countdown" type="button">
           <span>倒计时模式</span>
-          <small>进入网页答题计时界面，时间由系统自动安排。</small>
+          <small>进入答题计时界面，时间由系统自动安排。</small>
         </button>
       </div>
       <p class="muted" id="currentModeText">当前模式：待机</p>
@@ -67,9 +68,9 @@
     <section class="panel">
       <h2>通信协议</h2>
       <ul class="list">
-        <li>掌控板写入 HTAI_TOPIC：网页切换神舟、天宫、火箭等主题视频。</li>
-        <li>掌控板写入 HTAI_MODE 和 HTAI_PAGE：网页同步当前模式。</li>
-        <li>网页写入 HTAI_COMMAND、HTAI_EFFECT、HTAI_QUIZ_STATS：供掌控板网络版后续读取。</li>
+        <li>掌控板写入 HTAI_TOPIC，网页切换神舟、天宫、火箭等主题视频。</li>
+        <li>掌控板写入 HTAI_MODE 和 HTAI_PAGE，网页同步当前模式。</li>
+        <li>网页写入 HTAI_COMMAND、HTAI_EFFECT、HTAI_QUIZ_STATS，供掌控板网络版读取。</li>
       </ul>
     </section>
   </main>
@@ -80,6 +81,7 @@
     <a href="science.html?v=network5">科普</a>
     <a class="active" href="device.html?v=network5">联动</a>
     <a href="quiz.html?v=network5&mode=dati">答题</a>
+    <a href="rank.html">排行</a>
   </nav>
 </body>
 </html>

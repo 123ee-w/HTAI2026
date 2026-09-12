@@ -4,10 +4,10 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>答题区</title>
-  <link rel="stylesheet" href="assets/app.css?v=network5" />
+  <link rel="stylesheet" href="assets/app.css?v=ui6" />
   <script src="assets/app-data.js?v=remote6" defer></script>
-  <script src="assets/app-common.js?v=network5" defer></script>
-  <script src="assets/quiz.js?v=network5" defer></script>
+  <script src="assets/app-common.js?v=ui6" defer></script>
+  <script src="assets/quiz.js?v=ui6" defer></script>
 </head>
 <body data-page="quiz">
   <main class="app-page">
@@ -22,9 +22,10 @@
     <section class="bt-card compact" data-network-panel>
       <div>
         <strong>网络同步</strong>
-        <span id="cloudStatus">正在连接 TinyWebDB</span>
+        <span class="status-line"><i class="status-dot" aria-hidden="true"></i><span id="cloudStatus" aria-live="polite">连接中</span></span>
+        <small id="cloudSyncTime" class="sync-time">尚未同步</small>
       </div>
-      <button id="cloudRefresh" class="secondary" type="button">刷新</button>
+      <button id="cloudRefresh" class="secondary" type="button" aria-label="重新连接 TinyWebDB">重新连接</button>
     </section>
 
     <section class="panel">
@@ -47,7 +48,14 @@
     </section>
 
     <section class="panel">
-      <h2>当前题目</h2>
+      <div class="quiz-progress-head">
+        <h2>当前题目</h2>
+        <strong id="questionProgress">第 1 / 30 题</strong>
+      </div>
+      <div class="progress-track" aria-hidden="true"><span id="quizProgressBar"></span></div>
+    </section>
+
+    <section class="panel">
       <div class="question-box" id="questionText">准备出题...</div>
       <div class="choice-grid" id="choiceGrid"></div>
       <div class="button-row">
@@ -56,8 +64,9 @@
         <button id="speakExplain" class="secondary" type="button">朗读讲解</button>
         <a class="button secondary" href="rank.html">看排行</a>
       </div>
-      <p class="muted" id="quizNotice">请选择一个答案。</p>
+      <p class="muted" id="quizNotice" aria-live="polite">请选择一个答案。</p>
       <div class="answer-explanation" id="answerExplanation" hidden></div>
+      <section class="quiz-summary" id="quizSummary" hidden aria-live="polite"></section>
     </section>
 
     <section class="panel">
@@ -72,6 +81,7 @@
     <a href="science.html?v=network5">科普</a>
     <a href="device.html?v=network5">联动</a>
     <a class="active" href="quiz.html?v=network5&mode=dati">答题</a>
+    <a href="rank.html">排行</a>
   </nav>
 </body>
 </html>

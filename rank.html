@@ -4,10 +4,10 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>排行榜</title>
-  <link rel="stylesheet" href="assets/app.css?v=network5" />
+  <link rel="stylesheet" href="assets/app.css?v=ui6" />
   <script src="assets/app-data.js?v=remote6" defer></script>
-  <script src="assets/app-common.js?v=network5" defer></script>
-  <script src="assets/rank.js?v=network5" defer></script>
+  <script src="assets/app-common.js?v=ui6" defer></script>
+  <script src="assets/rank.js?v=ui6" defer></script>
 </head>
 <body data-page="rank">
   <main class="app-page">
@@ -22,9 +22,10 @@
     <section class="bt-card compact" data-network-panel>
       <div>
         <strong>网络同步</strong>
-        <span id="cloudStatus">正在连接 TinyWebDB</span>
+        <span class="status-line"><i class="status-dot" aria-hidden="true"></i><span id="cloudStatus" aria-live="polite">连接中</span></span>
+        <small id="cloudSyncTime" class="sync-time">尚未同步</small>
       </div>
-      <button id="cloudRefresh" class="secondary" type="button">刷新</button>
+      <button id="cloudRefresh" class="secondary" type="button" aria-label="重新连接 TinyWebDB">重新连接</button>
     </section>
 
     <section class="panel">
@@ -46,7 +47,7 @@
         <button id="syncAchievement" type="button">同步成就</button>
         <a class="button secondary" href="quiz.html">继续答题</a>
       </div>
-      <p class="muted">同步会写入 ACH0 / ACH1 / ACH2 / ACH3，网络版掌控板可据此显示固定称号。</p>
+      <p class="muted">同步会写入 ACH0 / ACH1 / ACH2 / ACH3，网络版掌控板可据此显示称号。</p>
     </section>
 
     <section class="panel">
@@ -65,7 +66,8 @@
     <a href="index.html">首页</a>
     <a href="science.html?v=network5">科普</a>
     <a href="device.html?v=network5">联动</a>
-    <a class="active" href="quiz.html?v=network5&mode=dati">答题</a>
+    <a href="quiz.html?v=network5&mode=dati">答题</a>
+    <a class="active" href="rank.html">排行</a>
   </nav>
 </body>
 </html>
