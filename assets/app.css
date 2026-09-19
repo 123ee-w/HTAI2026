@@ -405,6 +405,7 @@ p { line-height: 1.68; }
 .quiz-stats > div:last-child { border-bottom: 0; }
 .quiz-stats span { color: var(--muted); }
 .quiz-stats strong { color: #ffe08a; font-size: 20px; }
+.quiz-stats .stats-separator { padding: 0 4px; color: var(--muted); }
 .stats-note { margin: 10px 0 0; }
 
 .question-box {
@@ -1075,5 +1076,57 @@ button:focus-visible,
     animation-duration: .01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: .01ms !important;
+  }
+}
+
+/* Final restrained pass: keep the existing layout and logic, reduce visual noise. */
+:root {
+  --shadow: 0 10px 24px rgba(0, 0, 0, .24);
+}
+
+body {
+  background:
+    linear-gradient(180deg, #030817 0%, #07152d 52%, #061024 100%);
+}
+
+body::before { opacity: .18; }
+body::after { opacity: .1; }
+
+button,
+.button {
+  box-shadow: 0 7px 16px rgba(30, 211, 255, .14);
+}
+
+.bt-card,
+.panel,
+.tip-card,
+.video-card {
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(6px);
+}
+
+.entry-card {
+  background: rgba(10, 26, 58, .9);
+  box-shadow: 0 9px 20px rgba(0, 0, 0, .18);
+}
+
+.home-hero {
+  background: #06142d;
+}
+
+@media (max-width: 380px) {
+  .app-page { padding-inline: 9px; }
+
+  .button-row > * {
+    flex-basis: 100%;
+  }
+
+  .bottom-nav {
+    gap: 2px;
+    padding-inline: 5px;
+  }
+
+  .bottom-nav a {
+    font-size: 12px;
   }
 }

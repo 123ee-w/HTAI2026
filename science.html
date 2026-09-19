@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8" />
@@ -7,10 +7,10 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <title>科普视频</title>
-  <link rel="stylesheet" href="assets/app.css?v=ui6" />
+  <link rel="stylesheet" href="assets/app.css?v=ui7" />
   <script src="assets/app-data.js?v=network5" defer></script>
   <script src="assets/app-common.js?v=ui6" defer></script>
-  <script src="assets/science.js?v=ui6" defer></script>
+  <script src="assets/science.js?v=ui7" defer></script>
 </head>
 <body data-page="science">
   <main class="app-page">
@@ -35,11 +35,6 @@
       <strong id="scienceModeNotice"></strong>
     </section>
 
-    <section class="panel" id="keywordPanel" hidden>
-      <h2>当前关键词</h2>
-      <div class="keyword-scroll" id="keywordScroll">等待关键词发送...</div>
-    </section>
-
     <section class="panel" id="themeSelectorPanel">
       <div class="section-heading">
         <div>
@@ -49,6 +44,11 @@
         <span class="theme-chip" id="activeThemeChip">当前主题</span>
       </div>
       <div class="theme-grid" id="themeGrid"></div>
+    </section>
+
+    <section class="panel" id="keywordPanel" hidden>
+        <h2>关键词模式</h2>
+      <div class="keyword-scroll" id="keywordScroll">等待关键词发送...</div>
     </section>
 
     <section class="video-card">
@@ -72,6 +72,18 @@
   </main>
 
   <div class="toast" id="toast" hidden></div>
+  <script>
+    // 关键词模式：主题按钮显示在最上方，并套用联动页模式按钮样式（只改样式，不动原有功能）
+    window.addEventListener('load', function () {
+      if (new URLSearchParams(location.search).get('mode') !== 'keyword') return;
+      var panel = document.getElementById('themeSelectorPanel');
+      if (panel) panel.hidden = false;
+      var grid = document.getElementById('themeGrid');
+      if (!grid) return;
+      grid.className = 'mode-grid';
+      grid.querySelectorAll('button').forEach(function (b) { b.className = 'mode-button'; });
+    });
+  </script>
   <nav class="bottom-nav" aria-label="底部导航">
     <a href="index.html">首页</a>
     <a class="active" href="science.html?v=network5">科普</a>

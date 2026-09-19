@@ -45,9 +45,12 @@
   let pollTimer = null;
   let pollBusy = false;
   let writeQueue = Promise.resolve();
+  let pollFailureCount = 0;
   let latestStatus = '连接中';
   let lastSnapshot = null;
   let lastTopicCode = '';
+  const requestTimeoutMs = 8000;
+  const requestAttempts = 2;
 
   function $(selector, root = document) {
     return root.querySelector(selector);
@@ -138,6 +141,10 @@
     return parseMaybeJson(value);
   }
 
+  function wait(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
   async function tinyWebDbRequest(action, extra = {}) {
     const body = new URLSearchParams({
       user: tinyWebDbUser,
@@ -145,22 +152,38 @@
       action,
       ...extra
     });
-    const response = await fetch(tinyWebDbUrl, {
-      method: 'POST',
-      mode: 'cors',
-      cache: 'no-store',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
-      },
-      body
-    });
-    if (!response.ok) throw new Error(`TinyWebDB ${response.status}`);
-    const text = await response.text();
-    try {
-      return JSON.parse(text);
-    } catch {
-      return text;
+    let lastError = null;
+    for (let attempt = 0; attempt < requestAttempts; attempt += 1) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), requestTimeoutMs);
+      try {
+        const response = await fetch(tinyWebDbUrl, {
+          method: 'POST',
+          mode: 'cors',
+          cache: 'no-store',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+          },
+          body,
+          signal: controller.signal
+        });
+        if (!response.ok) throw new Error(`TinyWebDB ${response.status}`);
+        const text = await response.text();
+        try {
+          return JSON.parse(text);
+        } catch {
+          return text;
+        }
+      } catch (error) {
+        lastError = error?.name === 'AbortError'
+          ? new Error('TinyWebDB 请求超时')
+          : error;
+        if (attempt + 1 < requestAttempts) await wait(250);
+      } finally {
+        clearTimeout(timeout);
+      }
     }
+    throw lastError || new Error('TinyWebDB 请求失败');
   }
 
   async function readTag(tag) {
@@ -168,14 +191,24 @@
     return unwrapValue(result, tag);
   }
 
-  async function writeTag(tag, value) {
-    const operation = () => tinyWebDbRequest('update', {
-      tag,
-      value: typeof value === 'string' ? value : JSON.stringify(value)
-    });
+  async function writeTags(entries) {
+    const normalized = entries
+      .filter((entry) => entry && entry.tag)
+      .map((entry) => ({
+        tag: entry.tag,
+        value: typeof entry.value === 'string' ? entry.value : JSON.stringify(entry.value)
+      }));
+    if (!normalized.length) return [];
+    const operation = () => Promise.all(
+      normalized.map((entry) => tinyWebDbRequest('update', entry))
+    );
     const result = writeQueue.then(operation, operation);
     writeQueue = result.catch(() => {});
     return result;
+  }
+
+  function writeTag(tag, value) {
+    return writeTags([{ tag, value }]).then((results) => results[0]);
   }
 
   function normalizeThemeCode(value) {
@@ -235,7 +268,46 @@
     return '';
   }
 
-  async function readCloudSnapshot() {
+  function extractSearchValues(result) {
+    const values = {};
+    const visit = (node) => {
+      if (!node) return;
+      if (Array.isArray(node)) {
+        node.forEach(visit);
+        return;
+      }
+      if (typeof node !== 'object') return;
+      const tag = node.tag ?? node.name ?? node.key;
+      if (typeof tag === 'string' && tag) {
+        values[tag] = node.value ?? node.data ?? '';
+        return;
+      }
+      Object.entries(node).forEach(([key, value]) => {
+        if (key === 'data' || key === 'result' || key === 'items' || key === 'rows') {
+          visit(value);
+        } else if (key.startsWith('HTAI_') || key === tags.legacyTopic) {
+          values[key] = value;
+        }
+      });
+    };
+    visit(result);
+    return values;
+  }
+
+  async function readCloudSearch() {
+    const result = await tinyWebDbRequest('search', {
+      no: '1',
+      count: '100',
+      type: 'both'
+    });
+    const values = extractSearchValues(result);
+    if (!Object.keys(values).length) {
+      throw new Error('TinyWebDB 搜索结果为空');
+    }
+    return values;
+  }
+
+  async function readCloudFallback() {
     const results = await Promise.allSettled([
       readTag(tags.topic),
       readTag(tags.legacyTopic),
@@ -249,15 +321,36 @@
       throw new Error('TinyWebDB 无响应');
     }
     const values = results.map((item) => item.status === 'fulfilled' ? item.value : '');
+    return {
+      [tags.topic]: values[0],
+      [tags.legacyTopic]: values[1],
+      [tags.page]: values[2],
+      [tags.mode]: values[3],
+      [tags.stats]: values[4],
+      [tags.answer]: values[5],
+      [tags.voiceId]: values[6]
+    };
+  }
 
-    const voiceTarget = voiceIdTarget(values[6]);
-    const topic = voiceTarget.topic || normalizeThemeCode(values[0]) || normalizeThemeCode(values[1]);
+  async function readCloudSnapshot() {
+    let values;
+    try {
+      values = await readCloudSearch();
+    } catch (searchError) {
+      values = await readCloudFallback();
+    }
+
+    const voiceTarget = voiceIdTarget(values[tags.voiceId]);
+    const topic = voiceTarget.topic
+      || normalizeThemeCode(values[tags.topic])
+      || normalizeThemeCode(values[tags.legacyTopic]);
     return {
       topic,
-      page: voiceTarget.page || String(unwrapValue(values[2]) || ''),
-      mode: voiceTarget.mode || normalizeMode(values[3]),
-      stats: normalizeStats(values[4]),
-      answer: normalizeAnswer(values[5]),
+      page: voiceTarget.page || String(unwrapValue(values[tags.page]) || ''),
+      mode: voiceTarget.mode || normalizeMode(values[tags.mode]),
+      keyword: String(unwrapValue(values[tags.keyword]) || '').trim(),
+      stats: normalizeStats(values[tags.stats]),
+      answer: normalizeAnswer(values[tags.answer]),
       voiceId: voiceTarget.id,
       voiceTopic: Boolean(voiceTarget.topic),
       voiceMode: Boolean(voiceTarget.mode)
@@ -302,6 +395,9 @@
     if (snapshot.stats && JSON.stringify(snapshot.stats) !== JSON.stringify(previous?.stats)) {
       emit('htai:stats', snapshot.stats);
     }
+    if (snapshot.keyword && snapshot.keyword !== previous?.keyword) {
+      emit('htai:keyword', { keyword: snapshot.keyword, source: 'cloud' });
+    }
     if (snapshot.answer && snapshot.answer !== previous?.answer) {
       emit('htai:answer', { letter: snapshot.answer, source: 'cloud' });
       writeTag(tags.answer, '').catch(() => {});
@@ -336,24 +432,32 @@
     try {
       const snapshot = await readCloudSnapshot();
       const firstSuccess = !networkReady;
+      pollFailureCount = 0;
       networkReady = true;
       setStatus('已连接', true);
       if (firstSuccess) emit('htai:connection', { connected: true, source: 'cloud' });
       publishSnapshot(snapshot);
     } catch (error) {
       const firstFailure = networkReady;
+      pollFailureCount += 1;
       networkReady = false;
       setStatus('连接失败，请检查网络', false);
       if (firstFailure) emit('htai:connection', { connected: false, source: 'cloud' });
     } finally {
       pollBusy = false;
+      const delay = networkReady
+        ? 2500
+        : Math.min(20000, 5000 * (2 ** Math.min(pollFailureCount - 1, 2)));
+      if (pollTimer) clearTimeout(pollTimer);
+      pollTimer = setTimeout(pollCloud, delay);
     }
   }
 
   function startCloudPolling() {
-    if (pollTimer) clearInterval(pollTimer);
+    if (pollTimer) clearTimeout(pollTimer);
+    pollTimer = null;
+    pollFailureCount = 0;
     pollCloud();
-    pollTimer = setInterval(pollCloud, 2500);
   }
 
   function commandTarget(command) {
@@ -365,21 +469,24 @@
       MODE_IDLE: { mode: 'idle', page: 'home' }
     };
     if (modeMap[command]) {
-      return Promise.all([
-        writeTag(tags.mode, modeMap[command].mode),
-        writeTag(tags.page, modeMap[command].page),
-        writeTag(tags.voiceId, ''),
-        writeTag(tags.command, command)
+      return writeTags([
+        { tag: tags.mode, value: modeMap[command].mode },
+        { tag: tags.page, value: modeMap[command].page },
+        { tag: tags.voiceId, value: '' },
+        { tag: tags.command, value: command }
       ]);
     }
-    if (/^TIME_(5|6|7|8|9|10)$/.test(command)) {
+    if (/^TIME_20$/.test(command)) {
       return writeTag(tags.command, command);
     }
     if (command.startsWith('DATA_KEY:')) {
       return writeTag(tags.keyword, command.slice(9));
     }
-    if (command === 'STAR' || command === 'QOK1' || command === 'QOK2_FLASH' || command === 'QBAD') {
+    if (command === 'QOK1' || command === 'QOK2_FLASH' || command === 'QBAD') {
       return writeTag(tags.effect, command);
+    }
+    if (command === 'STAR' || command === 'MUSIC' || command === 'WARN') {
+      return writeTag(tags.command, command);
     }
     if (command.startsWith('STAT_')) {
       return writeTag(tags.command, command);
@@ -415,18 +522,37 @@
     const effect = correct
       ? (level === 'hard' ? 'STAR' : level === 'normal' ? 'QOK2_FLASH' : 'QOK1')
       : 'QBAD';
-    return Promise.all([
-      writeTag(tags.effect, effect),
-      writeTag('HTAI_LAST_RESULT', JSON.stringify({
-        correct: Boolean(correct),
-        level,
-        updatedAt: new Date().toISOString()
-      }))
+    const feedbackCommand = correct ? 'RESULT_OK' : 'RESULT_BAD';
+    return writeTags([
+      { tag: tags.effect, value: effect },
+      { tag: tags.command, value: feedbackCommand },
+      {
+        tag: 'HTAI_LAST_RESULT',
+        value: {
+          correct: Boolean(correct),
+          level,
+          updatedAt: new Date().toISOString()
+        }
+      }
     ]).catch(() => false);
   }
 
   function sendQuizStats(score, correct, wrong, level) {
     return syncQuizStats({ score, correct, wrong, level });
+  }
+
+  function resetQuizStats() {
+    const stats = {
+      score: 0,
+      correct: 0,
+      wrong: 0,
+      level: 'idle',
+      updatedAt: new Date().toISOString()
+    };
+    return writeTag(tags.stats, stats).then(() => {
+      emit('htai:stats', stats);
+      return stats;
+    });
   }
 
   function sendQuestion(index, question, optA, optB, optC, optD) {
@@ -455,7 +581,7 @@
       score: Number(stats.score || 0),
       correct: Number(stats.correct || 0),
       wrong: Number(stats.wrong || 0),
-      level: String(stats.level || 'easy'),
+      level: String(stats.level || 'idle'),
       updatedAt: String(stats.updatedAt || new Date().toISOString())
     });
   }
@@ -484,6 +610,7 @@
     sendMode,
     sendAnswerResult,
     sendQuizStats,
+    resetQuizStats,
     sendQuestion,
     sendKeyword,
     sendTTS,
@@ -492,6 +619,7 @@
     tinyWebDbRequest,
     readTag,
     writeTag,
+    writeTags,
     showToast,
     $,
     $all

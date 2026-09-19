@@ -5,8 +5,6 @@
 
   let activeThemeCode = window.App?.getThemeCode('A') || 'A';
   let keywordTimer = null;
-  let keywordItems = [];
-  let keywordIndex = 0;
 
   function activate(code, fromCloud) {
     const data = window.AppData.themes[code] || window.AppData.themes.A;
@@ -44,26 +42,14 @@
   }
 
   function buildKeywordList(data) {
-    keywordItems = [data.title, ...(data.facts || []), data.prompt || ''].filter(Boolean);
-    keywordIndex = 0;
-    const scroll = window.App.$('#keywordScroll');
-    if (scroll) scroll.textContent = '等待关键词同步...';
-    scheduleKeywords();
-  }
-
-  function scheduleKeywords() {
     if (keywordTimer) clearInterval(keywordTimer);
-    if (!keywordItems.length) return;
-    const video = window.App.$('#themeVideo');
-    const duration = Number.isFinite(video.duration) ? video.duration : 0;
-    const rawInterval = duration > 0 ? (duration * 1000) / keywordItems.length : 3000;
-    const interval = Math.max(2000, Math.min(5000, rawInterval));
-    keywordTimer = setInterval(showNextKeyword, interval);
+    keywordTimer = null;
+    setKeyword(data.title);
   }
 
-  function showNextKeyword() {
-    if (!keywordItems.length) return;
-    const item = keywordItems[keywordIndex % keywordItems.length];
+  function setKeyword(value) {
+    const item = String(value || '').trim();
+    if (!item) return;
     const scroll = window.App.$('#keywordScroll');
     if (scroll) {
       scroll.textContent = item;
@@ -71,8 +57,6 @@
       void scroll.offsetWidth;
       scroll.classList.add('keyword-in');
     }
-    window.App.sendKeyword(item);
-    keywordIndex += 1;
   }
 
   function handleThemeSignal(event) {
@@ -150,12 +134,11 @@
     video.addEventListener('loadeddata', () => {
       if (videoStatus) videoStatus.textContent = '';
     });
-    video.addEventListener('loadedmetadata', () => {
-      if (requestedMode === 'keyword') scheduleKeywords();
-    });
-
     window.addEventListener('htai:theme', handleThemeSignal);
     window.addEventListener('htai:topic', handleThemeSignal);
+    window.addEventListener('htai:keyword', (event) => {
+      if (requestedMode === 'keyword') setKeyword(event.detail?.keyword);
+    });
 
     const modeNotice = window.App.$('#scienceModeNotice');
     const themeSelector = window.App.$('#themeSelectorPanel');
@@ -165,8 +148,7 @@
     if (requestedMode === 'keyword') {
       if (themeSelector) themeSelector.hidden = true;
       if (keywordPanel) keywordPanel.hidden = false;
-      if (modeNoticePanel) modeNoticePanel.hidden = false;
-      if (modeNotice) modeNotice.textContent = '关键词模式：网页按视频时长均匀滚动，并同步写入 TinyWebDB。';
+      if (modeNoticePanel) modeNoticePanel.hidden = true;
     } else if (requestedMode === 'theme') {
       if (themeSelector) themeSelector.hidden = true;
       if (keywordPanel) keywordPanel.hidden = true;

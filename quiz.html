@@ -4,10 +4,10 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>答题区</title>
-  <link rel="stylesheet" href="assets/app.css?v=ui6" />
+  <link rel="stylesheet" href="assets/app.css?v=ui7" />
   <script src="assets/app-data.js?v=remote6" defer></script>
   <script src="assets/app-common.js?v=ui6" defer></script>
-  <script src="assets/quiz.js?v=ui6" defer></script>
+  <script src="assets/quiz.js?v=ui7" defer></script>
 </head>
 <body data-page="quiz">
   <main class="app-page">
@@ -30,12 +30,14 @@
 
     <section class="panel">
       <div class="quiz-stats" aria-label="答题统计">
-        <div><span>积分</span><strong id="scoreText">0</strong></div>
-        <div><span>答对</span><strong id="correctText">0 题</strong></div>
-        <div><span>答错</span><strong id="wrongText">0 题</strong></div>
-        <div><span>难度</span><strong id="levelText">简单</strong></div>
+        <div><strong id="scoreText">积分：0分</strong></div>
+        <div>
+          <strong id="correctText">答对：0题</strong><span class="stats-separator">，</span><strong id="wrongText">答错：0题</strong>
+        </div>
+        <div><span>难度</span><strong id="levelText">未选择</strong></div>
       </div>
-    <p class="muted stats-note">数据保存在当前浏览器，并同步到 TinyWebDB。</p>
+      <p class="muted stats-note">数据保存在当前浏览器，并同步到 TinyWebDB。</p>
+      <button id="resetQuiz" class="secondary" type="button">重置答题数据</button>
     </section>
 
     <section class="panel">
@@ -44,6 +46,15 @@
         <button class="active" data-level="easy" type="button">简单</button>
         <button data-level="normal" type="button">进阶</button>
         <button data-level="hard" type="button">挑战</button>
+      </div>
+    </section>
+
+    <section class="panel" id="startPanel">
+      <h2>是否开始答题？</h2>
+      <p class="muted">选择难度后，点击“开始答题”。每题会先朗读题目和选项，朗读结束后才开始 20 秒倒计时。</p>
+      <div class="button-row two">
+        <button id="startQuiz" type="button">是，开始答题</button>
+        <button id="pauseQuiz" class="secondary" type="button">暂不开始</button>
       </div>
     </section>
 

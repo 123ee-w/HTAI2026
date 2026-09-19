@@ -17,10 +17,15 @@
   let score = Number(localStorage.getItem(scoreKey) || 0);
   let totalCorrect = Number(localStorage.getItem(correctKey) || 0);
   let totalWrong = Number(localStorage.getItem(incorrectKey) || 0);
-  let level = 'easy';
+  let level = ['idle', 'easy', 'normal', 'hard'].includes(localStorage.getItem('htai-level'))
+    ? localStorage.getItem('htai-level')
+    : 'idle';
   let current = null;
   let currentChoices = [];
   let answered = false;
+  let quizStarted = false;
+  let questionReady = false;
+  let speechActive = false;
   let countdownTimer = null;
   let countdownRemaining = 0;
   let advanceTimer = null;
@@ -68,20 +73,26 @@
   }
 
   function renderScore() {
-    window.App.$('#scoreText').textContent = score;
-    window.App.$('#correctText').textContent = `${totalCorrect} 题`;
-    window.App.$('#wrongText').textContent = `${totalWrong} 题`;
-    window.App.$('#levelText').textContent = level === 'hard' ? '挑战' : level === 'normal' ? '进阶' : '简单';
+    window.App.$('#scoreText').textContent = `积分：${score}分`;
+    window.App.$('#correctText').textContent = `答对：${totalCorrect}题`;
+    window.App.$('#wrongText').textContent = `答错：${totalWrong}题`;
+    window.App.$('#levelText').textContent = level === 'hard'
+      ? '挑战'
+      : level === 'normal'
+        ? '进阶'
+        : level === 'easy'
+          ? '简单'
+          : '未选择';
   }
 
   function renderProgress() {
-    const total = questionsForLevel().length || 30;
+    const total = level === 'idle' ? 30 : questionsForLevel().length || 30;
     const currentNumber = ((questionSerial - 1) % total) + 1;
     const progress = Math.round((currentNumber / total) * 100);
     const label = window.App.$('#questionProgress');
     const bar = window.App.$('#quizProgressBar');
-    if (label) label.textContent = `第 ${currentNumber} / ${total} 题`;
-    if (bar) bar.style.width = `${progress}%`;
+    if (label) label.textContent = level === 'idle' ? '未开始' : `第 ${currentNumber} / ${total} 题`;
+    if (bar) bar.style.width = level === 'idle' ? '0%' : `${progress}%`;
   }
 
   function applyCloudStats(stats, force = false) {
@@ -91,7 +102,7 @@
     score = Number(stats.score || 0);
     totalCorrect = Number(stats.correct || 0);
     totalWrong = Number(stats.wrong || 0);
-    if (['easy', 'normal', 'hard'].includes(stats.level)) level = stats.level;
+    if (['idle', 'easy', 'normal', 'hard'].includes(stats.level)) level = stats.level;
     if (cloudTime) {
       lastStatsUpdatedAt = cloudTime;
       localStorage.setItem('htai-stats-updated-at', String(cloudTime));
@@ -118,14 +129,10 @@
     advanceTimer = null;
   }
 
-  function getCountdownSeconds() {
-    return 5 + Math.floor(Math.random() * 6);
-  }
-
-  function startCountdown(seconds) {
+  function startCountdown() {
     clearCountdown();
-    window.App.sendCommand(`TIME_${seconds}`, { quiet: true });
-    countdownRemaining = seconds;
+    window.App.sendCommand('TIME_20', { quiet: true });
+    countdownRemaining = 20;
     window.App.$('#quizNotice').textContent = `倒计时：${countdownRemaining} 秒`;
     countdownTimer = setInterval(() => {
       countdownRemaining -= 1;
@@ -133,9 +140,10 @@
       if (countdownRemaining <= 0) {
         clearCountdown();
         notice.textContent = '时间到，本题关闭，准备下一题。';
+        answered = true;
+        questionReady = false;
         renderAnsweredState('时间到');
         clearAdvance();
-        advanceTimer = setTimeout(nextQuestion, 1000);
       } else {
         notice.textContent = `倒计时：${countdownRemaining} 秒`;
       }
@@ -160,8 +168,10 @@
         current = wrongList[Number(button.dataset.redo)];
         currentChoices = shuffle(current.options);
         answered = false;
+        quizStarted = true;
+        questionReady = false;
         renderQuestion('正在重做错题。');
-        startCountdown(getCountdownSeconds());
+        readQuestionThenStart();
       });
     });
   }
@@ -169,6 +179,7 @@
   function nextQuestion() {
     clearAdvance();
     clearCountdown();
+    if (!quizStarted || level === 'idle') return;
     const pool = questionsForLevel();
     if (!pool.length) return;
     let available = pool.filter((item) => !usedQuestions.has(item.q) && item.q !== lastQuestionKey);
@@ -185,7 +196,7 @@
     answered = false;
     renderQuestion(networkMode ? '请选择答案，结果会同步到网络。' : '请选择答案。');
     renderProgress();
-    startCountdown(getCountdownSeconds());
+    readQuestionThenStart();
   }
 
   function sendTTS(text) {
@@ -201,21 +212,44 @@
     window.App.$all('[data-choice]', grid).forEach((button) => {
       button.addEventListener('click', () => selectChoice(button.dataset.choice));
     });
+    setChoiceEnabled(false);
     window.App.$('#quizNotice').textContent = notice;
     const explain = window.App.$('#answerExplanation');
     explain.hidden = true;
     explain.textContent = '';
   }
 
-  function renderAnsweredState(message) {
-    window.App.$('#questionText').textContent = message;
+  function setChoiceEnabled(enabled) {
     window.App.$all('[data-choice]').forEach((button) => {
-      button.disabled = true;
+      button.disabled = !enabled;
     });
   }
 
+  function readQuestionThenStart() {
+    if (!current || !quizStarted || answered) return;
+    questionReady = false;
+    speechActive = true;
+    setChoiceEnabled(false);
+    speakText(
+      `${current.q}。选项：${currentChoices.join('，')}`,
+      '正在朗读题目，朗读结束后开始 20 秒倒计时。',
+      () => {
+        speechActive = false;
+        if (!quizStarted || answered || !current) return;
+        questionReady = true;
+        setChoiceEnabled(true);
+        startCountdown();
+      }
+    );
+  }
+
+  function renderAnsweredState(message) {
+    questionReady = false;
+    setChoiceEnabled(false);
+  }
+
   function selectChoice(choice) {
-    if (!current || answered) return;
+    if (!current || answered || !quizStarted || !questionReady || speechActive) return;
     answered = true;
     clearCountdown();
     clearAdvance();
@@ -225,27 +259,25 @@
       totalCorrect++;
       buttons.find((item) => item.dataset.choice === choice)?.classList.add('correct');
       wrongList = wrongList.filter((item) => item.q !== current.q);
-      window.App.$('#quizNotice').textContent = '回答正确，积分 +10。';
+      window.App.$('#quizNotice').textContent = '恭喜你答对了，积分 +10。';
       renderAnsweredState('回答正确');
       window.App.sendAnswerResult?.(true, level);
-      const levelText = level === 'hard' ? '挑战难度' : level === 'normal' ? '中等难度' : '简单难度';
-      sendTTS(`答对了，${levelText}`);
+      sendTTS('恭喜你答对了');
     } else {
       score -= 10;
       totalWrong++;
       buttons.find((item) => item.dataset.choice === choice)?.classList.add('wrong');
       buttons.find((item) => item.dataset.choice === current.a)?.classList.add('correct');
       if (!wrongList.some((item) => item.q === current.q)) wrongList.push(current);
-      window.App.$('#quizNotice').textContent = `回答错误，积分 -10。正确答案：${current.a}`;
+      window.App.$('#quizNotice').textContent = `继续努力，积分 -10。正确答案：${current.a}`;
       renderAnsweredState('回答错误');
       window.App.sendAnswerResult?.(false, level);
-      sendTTS('回答错误，扣十分');
+      sendTTS('继续努力');
     }
     renderScore();
     save();
     renderWrongList();
     showExplanation();
-    advanceTimer = setTimeout(nextQuestion, 1500);
   }
 
   function showExplanation() {
@@ -259,21 +291,24 @@
     explain.textContent = `讲解：${current.explain}`;
   }
 
-  function speakText(text, successText) {
+  function speakText(text, successText, onEnd) {
     if (!('speechSynthesis' in window)) {
       window.App.$('#quizNotice').textContent = '当前浏览器不支持朗读。';
+      onEnd?.();
       return;
     }
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'zh-CN';
     utterance.rate = 0.92;
+    utterance.onend = () => onEnd?.();
+    utterance.onerror = () => onEnd?.();
     window.speechSynthesis.speak(utterance);
     window.App.$('#quizNotice').textContent = successText;
   }
 
   function speakQuestion() {
-    if (!current) return;
+    if (!current || speechActive) return;
     speakText(`${current.q}。选项：${currentChoices.join('，')}`, '正在朗读题目。');
   }
 
@@ -287,10 +322,87 @@
 
   function handleCloudAnswer(event) {
     const letter = event.detail?.letter;
-    if (!letter || !current || answered) return;
+    if (!letter || !current || answered || !questionReady) return;
     const index = letter.charCodeAt(0) - 65;
     const choice = currentChoices[index];
     if (choice) selectChoice(choice);
+  }
+
+  function updateStartButton() {
+    const button = window.App.$('#startQuiz');
+    if (button) button.disabled = level === 'idle';
+  }
+
+  function renderWaitingState(message = '请选择难度，然后点击“开始答题”。') {
+    current = null;
+    currentChoices = [];
+    questionReady = false;
+    window.App.$('#questionText').textContent = message;
+    window.App.$('#choiceGrid').innerHTML = '';
+    window.App.$('#quizNotice').textContent = message;
+    window.App.$('#answerExplanation').hidden = true;
+    renderProgress();
+  }
+
+  function startQuiz() {
+    if (level === 'idle') {
+      window.App.$('#quizNotice').textContent = '请先选择简单、进阶或挑战难度。';
+      return;
+    }
+    quizStarted = true;
+    window.App.$('#startPanel').hidden = true;
+    nextQuestion();
+  }
+
+  function pauseQuiz() {
+    quizStarted = false;
+    questionReady = false;
+    speechActive = false;
+    clearCountdown();
+    clearAdvance();
+    window.speechSynthesis?.cancel();
+    window.App.$('#startPanel').hidden = false;
+    renderWaitingState('答题已暂停，点击“是，开始答题”继续。');
+    updateStartButton();
+  }
+
+  async function resetQuiz() {
+    quizStarted = false;
+    questionReady = false;
+    speechActive = false;
+    clearCountdown();
+    clearAdvance();
+    window.speechSynthesis?.cancel();
+    score = 0;
+    totalCorrect = 0;
+    totalWrong = 0;
+    level = 'idle';
+    current = null;
+    currentChoices = [];
+    usedQuestions = new Set();
+    questionSerial = 0;
+    lastQuestionKey = '';
+    wrongList = [];
+    const updatedAt = new Date().toISOString();
+    lastStatsUpdatedAt = Date.parse(updatedAt);
+    localStorage.setItem(scoreKey, '0');
+    localStorage.setItem(correctKey, '0');
+    localStorage.setItem(incorrectKey, '0');
+    localStorage.setItem(wrongKey, '[]');
+    localStorage.setItem('htai-level', 'idle');
+    localStorage.setItem('htai-stats-updated-at', String(lastStatsUpdatedAt));
+    renderScore();
+    renderWrongList();
+    window.App.$all('[data-level]').forEach((button) => button.classList.remove('active'));
+    window.App.$('#startPanel').hidden = false;
+    renderWaitingState('已重置，请重新选择难度。');
+    updateStartButton();
+    try {
+      await window.App.resetQuizStats?.();
+      window.App.showToast('答题数据已重置并同步到 TinyWebDB');
+    } catch {
+      window.App.showToast('本地数据已重置，云端同步失败');
+    }
   }
 
   async function initQuiz() {
@@ -312,13 +424,27 @@
 
     window.App.$all('[data-level]').forEach((button) => {
       button.addEventListener('click', () => {
+        clearCountdown();
+        clearAdvance();
+        window.speechSynthesis?.cancel();
+        quizStarted = false;
+        questionReady = false;
+        speechActive = false;
         level = button.dataset.level;
+        usedQuestions = new Set();
+        questionSerial = 0;
+        lastQuestionKey = '';
         window.App.$all('[data-level]').forEach((item) => item.classList.toggle('active', item === button));
         renderScore();
-        nextQuestion();
+        window.App.$('#startPanel').hidden = false;
+        renderWaitingState('难度已选择，请点击“是，开始答题”。');
+        updateStartButton();
         save();
       });
     });
+    window.App.$('#resetQuiz').addEventListener('click', resetQuiz);
+    window.App.$('#startQuiz').addEventListener('click', startQuiz);
+    window.App.$('#pauseQuiz').addEventListener('click', pauseQuiz);
     window.App.$('#nextQuestion').addEventListener('click', nextQuestion);
     window.App.$('#speakQuestion').addEventListener('click', speakQuestion);
     window.App.$('#speakExplain').addEventListener('click', speakExplanation);
@@ -330,7 +456,8 @@
       applyCloudStats(event.detail);
     });
     announceQuizMode();
-    nextQuestion();
+    renderWaitingState();
+    updateStartButton();
   }
 
   document.addEventListener('DOMContentLoaded', initQuiz);
